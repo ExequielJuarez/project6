@@ -76,7 +76,7 @@
     const ocupadas = estado.mesas.filter((m) => m.pedidoId);
     const porCobrar = ocupadas.reduce((s, m) => s + m.total, 0);
     $("vista-mesas").innerHTML = `
-      <div class="titulo-vista"><h2>Mesas</h2><span class="suave" style="color:var(--arena)">${ocupadas.length} ocupada(s) · por cobrar ${pesos(porCobrar)}</span></div>
+      <div class="titulo-vista"><h2>Mesas</h2><span class="suave">${ocupadas.length} ocupada(s) · por cobrar ${pesos(porCobrar)}</span></div>
       ${estado.caja ? "" : `<div class="banner"><span>💵 La caja está cerrada. Abrila para poder cobrar mesas.</span><button class="btn btn-acento btn-chico" data-a="ir" data-v="caja">Ir a Caja</button></div>`}
       <div class="grilla-mesas">${estado.mesas.filter((m) => !m.fueraDeRango || m.pedidoId).map((m) => `
         <button class="mesa ${m.pedidoId ? "ocupada" : ""} ${m.sinVer || m.aviso ? "nuevo" : ""}" data-a="mesa" data-n="${m.mesa}">
@@ -104,7 +104,7 @@
     const aviso = pedido?.aviso;
     $("dlgMesa").innerHTML = `
       <div class="dlg-cab"><h2>Mesa ${n}</h2><button class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>
-      ${aviso ? `<div class="banner" style="color:var(--crema)">${aviso === "cuenta" ? "🧾 El cliente pidió la cuenta" : "🙋 El cliente llama al mozo"}</div>` : ""}
+      ${aviso ? `<div class="banner">${aviso === "cuenta" ? "🧾 El cliente pidió la cuenta" : "🙋 El cliente llama al mozo"}</div>` : ""}
       ${!pedido ? `<p class="vacio">Mesa libre. Agregá productos para abrir una cuenta.</p>` : `
       <div class="lineas">${pedido.items.map((i) => `
         <div class="linea ${estado.nuevos.has(i.id) ? "nuevo" : ""}">
@@ -214,7 +214,7 @@
           <div><b>${esc(p.nombre)} ${p.activo ? "" : '<span class="etq">PAUSADO</span>'}</b><p class="suave">${esc(p.descripcion)}</p></div>
           <div class="importe">${pesos(p.precio)}</div>
           <div class="acciones"><button class="btn btn-chico" data-a="editar-prod" data-id="${p.id}">Editar</button></div></div>`).join("") || '<p class="suave">Sin productos todavía.</p>'}
-      </div>`).join("") || '<p class="vacio" style="color:var(--arena)">Todavía no cargaste categorías. Empezá creando una (ej: Hamburguesas).</p>'}`;
+      </div>`).join("") || '<p class="vacio">Todavía no cargaste categorías. Empezá creando una (ej: Hamburguesas).</p>'}`;
   }
 
   function abrirForm(titulo, cuerpo, alEnviar) {
@@ -287,7 +287,7 @@
         <form id="formAbrir"><label class="campo"><span>Efectivo inicial ($)</span><input name="monto" type="number" inputmode="decimal" min="0" step="any" required value="0"></label><button class="btn btn-principal">Abrir caja</button></form></div>`;
     } else {
       const t = actual.turno;
-      html += `<p class="suave" style="color:var(--arena)">Abierta desde ${fechaHora(t.creado_en)}</p>
+      html += `<p class="suave">Abierta desde ${fechaHora(t.creado_en)}</p>
         <div class="kpis">
           <div class="kpi oscuro"><small>Efectivo que debería haber</small><strong>${pesos(actual.esperado)}</strong><em>inicial + ventas en efectivo + ingresos − egresos</em></div>
           <div class="kpi"><small>Ventas del turno</small><strong>${pesos(actual.totalVentas)}</strong><em>${actual.pedidos} mesa(s) cobrada(s)</em></div>
@@ -332,12 +332,13 @@
         <div class="tabs">${[["dia", "Día"], ["semana", "Semana"], ["mes", "Mes"]].map(([g, t]) => `<button data-a="grupo" data-g="${g}" class="${r.grupo === g ? "sel" : ""}">${t}</button>`).join("")}</div></div>
         <div class="grafico">${r.serie.map((s) => `<button class="col ${s.clave === r.clave ? "sel" : ""}" data-a="periodo" data-k="${s.clave}" title="${s.etiqueta}: ${pesos(s.ventas)}"><span class="val">${s.ventas ? pesos(s.ventas) : ""}</span><div class="barra-g" style="height:${Math.round((s.ventas / max) * 130)}px"></div><span class="et">${s.etiqueta}</span></button>`).join("")}</div></div>
       <div class="tarjeta"><h3>Detalle · ${esc(r.etiquetaClave)}</h3>
-        <div class="kpis" style="margin-bottom:0"><div class="kpi" style="background:var(--arena)"><small>Ventas</small><strong>${pesos(r.detalle.ventas)}</strong></div>
-          <div class="kpi" style="background:var(--arena)"><small>${r.hayCostos ? "Ganancia" : "Cuentas cobradas"}</small><strong>${r.hayCostos ? pesos(r.detalle.ganancia) : r.detalle.pedidos}</strong></div>
-          <div class="kpi" style="background:var(--arena)"><small>Ticket promedio</small><strong>${pesos(r.detalle.ticketPromedio)}</strong><em>${r.detalle.pedidos} cuenta(s)</em></div>
-          <div class="kpi" style="background:var(--arena)"><small>Descuentos</small><strong>${pesos(r.detalle.descuentos)}</strong></div></div></div>
+        <div class="kpis" style="margin-bottom:0"><div class="kpi" style="background:var(--latte)"><small>Ventas</small><strong>${pesos(r.detalle.ventas)}</strong></div>
+          <div class="kpi" style="background:var(--latte)"><small>${r.hayCostos ? "Ganancia" : "Cuentas cobradas"}</small><strong>${r.hayCostos ? pesos(r.detalle.ganancia) : r.detalle.pedidos}</strong></div>
+          <div class="kpi" style="background:var(--latte)"><small>Ticket promedio</small><strong>${pesos(r.detalle.ticketPromedio)}</strong><em>${r.detalle.pedidos} cuenta(s)</em></div>
+          <div class="kpi" style="background:var(--latte)"><small>Descuentos</small><strong>${pesos(r.detalle.descuentos)}</strong></div></div></div>
       <div class="dos-col" style="margin-top:14px"><div class="tarjeta"><h3>Cobrado por método</h3>${Object.entries(METODOS).map(([m, v]) => `<div class="metodo-fila"><span>${v}</span><b>${pesos(r.detalle.porMetodo[m])}</b></div>`).join("")}</div>
         <div class="tarjeta"><h3>Lo más vendido</h3>${r.detalle.top.length ? r.detalle.top.map((t, i) => `<div class="metodo-fila"><span>${i + 1}. ${esc(t.nombre)}</span><b>${t.cantidad} u. · ${pesos(t.total)}</b></div>`).join("") : '<p class="suave">Sin ventas en este período.</p>'}</div></div>`;
+    const g = document.querySelector(".grafico"); if (g) g.scrollLeft = g.scrollWidth; // arranca mostrando lo más reciente
   }
 
   // ---------- HISTORIAL ----------
