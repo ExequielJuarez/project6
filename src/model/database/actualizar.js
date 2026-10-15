@@ -13,6 +13,31 @@ const COLUMNAS_PEDIDOS = {
   envio: { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 },
 };
 
+// Fotos de ejemplo según el nombre de la categoría (se aplican UNA vez, al agregar la columna)
+const FOTOS_CATEGORIA = [
+  [/caf[eé]/i, "/img/cafe.webp"],
+  [/panific|medialuna/i, "/img/medialunas.webp"],
+  [/hamburg|burger/i, "/img/hamburguesa.webp"],
+  [/pizza/i, "/img/pizza.webp"],
+  [/pancho|hot ?dog/i, "/img/pancho.webp"],
+  [/papa/i, "/img/papas-fritas.webp"],
+];
+
+async function agregarImagenCategorias(sequelize, qi) {
+  let cols;
+  try { cols = await qi.describeTable("categorias"); } catch { return; }
+  if (cols.imagen) return;
+  await qi.addColumn("categorias", "imagen", { type: DataTypes.STRING(255), allowNull: false, defaultValue: "" });
+  console.log("🔧 Base actualizada: categorias.imagen");
+  const [categorias] = await sequelize.query("SELECT id, nombre FROM categorias");
+  for (const c of categorias) {
+    const foto = FOTOS_CATEGORIA.find(([re]) => re.test(c.nombre));
+    if (foto) await sequelize.query("UPDATE categorias SET imagen = ? WHERE id = ?", { replacements: [foto[1], c.id] });
+  }
+  await sequelize.query("UPDATE productos SET imagen = '/img/bebida-coca-cola.webp' WHERE imagen = '' AND nombre REGEXP 'gaseosa|coca'");
+  console.log("🖼️  Fotos de ejemplo asignadas a las categorías");
+}
+
 module.exports = async function actualizar(sequelize) {
   const qi = sequelize.getQueryInterface();
   let cols;
@@ -20,6 +45,7 @@ module.exports = async function actualizar(sequelize) {
   for (const [nombre, def] of Object.entries(COLUMNAS_PEDIDOS)) {
     if (!cols[nombre]) { await qi.addColumn("pedidos", nombre, def); console.log(`🔧 Base actualizada: pedidos.${nombre}`); }
   }
+  await agregarImagenCategorias(sequelize, qi);
   // Los delivery no tienen número de mesa
   if (cols.mesa && cols.mesa.allowNull === false) {
     await qi.changeColumn("pedidos", "mesa", { type: DataTypes.INTEGER, allowNull: true });

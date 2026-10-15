@@ -312,10 +312,10 @@
     estado.menu = (await api("GET", "/admin/api/menu")).categorias;
     $("vista-menu").innerHTML = `<div class="titulo-vista"><div><p class="eyebrow">Panel de administración</p><h2>Menú</h2><p>Lo que ven tus clientes. Pausá un producto si se acabó.</p></div><button class="btn btn-principal" data-a="nueva-cat">＋ Categoría</button></div>
       ${estado.menu.map((c) => `<div class="tarjeta cat-admin">
-        <div class="cat-cab"><h3>${c.icono} ${esc(c.nombre)} ${c.activo ? "" : '<span class="etq">OCULTA</span>'}</h3>
+        <div class="cat-cab"><h3>${c.imagen ? `<img src="${esc(c.imagen)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px">` : c.icono + " "}${esc(c.nombre)} ${c.activo ? "" : '<span class="etq">OCULTA</span>'}</h3>
           <button class="btn btn-chico" data-a="nuevo-prod" data-id="${c.id}">＋ Producto</button><button class="btn btn-chico" data-a="editar-cat" data-id="${c.id}">Editar</button></div>
         ${c.productos.map((p) => `<div class="prod-fila ${p.activo ? "" : "inactivo"}">
-          <div class="mini">${p.imagen ? `<img src="${esc(p.imagen)}" alt="">` : c.icono}</div>
+          <div class="mini">${p.imagen || c.imagen ? `<img src="${esc(p.imagen || c.imagen)}" alt="">` : c.icono}</div>
           <div><b>${esc(p.nombre)} ${p.activo ? "" : '<span class="etq">PAUSADO</span>'}</b><p class="suave">${esc(p.descripcion)}</p></div>
           <div class="importe">${pesos(p.precio)}</div>
           <div class="acciones"><button class="btn btn-chico" data-a="editar-prod" data-id="${p.id}">Editar</button></div></div>`).join("") || '<p class="suave">Sin productos todavía.</p>'}
@@ -326,34 +326,12 @@
     $("formDlg").onsubmit = seguro(async (e) => { e.preventDefault(); await alEnviar(new FormData(e.target)); });
     if (!$("dlgForm").open) $("dlgForm").showModal();
   }
-  function formCategoria(c) {
-    abrirForm(c ? "Editar categoría" : "Nueva categoría", `
-      <label class="campo"><span>Nombre</span><input name="nombre" required maxlength="80" value="${esc(c?.nombre)}"></label>
-      <div class="fila-campos"><label class="campo"><span>Ícono (emoji)</span><input name="icono" maxlength="8" value="${esc(c?.icono || "🍽️")}"></label>
-      <label class="campo"><span>Orden</span><input name="orden" type="number" value="${c?.orden ?? estado.menu.length}"></label></div>
-      <label class="campo"><input type="checkbox" name="activo" ${c?.activo !== false ? "checked" : ""}> Visible en el menú</label>
-      <div class="acciones"><button class="btn btn-principal" style="flex:1">Guardar</button>${c ? `<button type="button" class="btn btn-peligro" data-a="borrar-cat" data-id="${c.id}">Eliminar</button>` : ""}</div>`,
-      async (fd) => {
-        await api(c ? "PUT" : "POST", c ? `/admin/api/categorias/${c.id}` : "/admin/api/categorias", { nombre: fd.get("nombre"), icono: fd.get("icono"), orden: fd.get("orden"), activo: fd.has("activo") });
-        $("dlgForm").close(); toast("Categoría guardada"); vistaMenu();
-      });
-  }
-  function formProducto(p, categoriaId) {
-    abrirForm(p ? "Editar producto" : "Nuevo producto", `
-      <label class="campo"><span>Nombre</span><input name="nombre" required maxlength="120" value="${esc(p?.nombre)}"></label>
-      <label class="campo"><span>Descripción <small>(opcional)</small></span><textarea name="descripcion" rows="2" maxlength="300">${esc(p?.descripcion)}</textarea></label>
-      <div class="fila-campos"><label class="campo"><span>Precio ($)</span><input name="precio" type="number" inputmode="decimal" min="0" step="any" required value="${p?.precio ?? ""}"></label>
-      <label class="campo"><span>Categoría</span><select name="categoria_id">${estado.menu.map((c) => `<option value="${c.id}" ${(p?.categoria_id ?? categoriaId) == c.id ? "selected" : ""}>${c.icono} ${esc(c.nombre)}</option>`).join("")}</select></label></div>
-      <div class="campo"><span>Foto <small>(opcional)</small></span>
-        <img id="prev" class="vista-previa" alt="" ${p?.imagen ? `src="${esc(p.imagen)}"` : "hidden"}>
-        <input type="hidden" name="imagen" id="imgUrl" value="${esc(p?.imagen)}"><input type="file" id="imgArchivo" accept="image/jpeg,image/png,image/webp">
-        <button type="button" class="btn btn-chico" data-a="quitar-foto" style="margin-top:6px">Quitar foto</button></div>
-      <label class="campo"><input type="checkbox" name="activo" ${p?.activo !== false ? "checked" : ""}> Disponible (destildalo si se acabó)</label>
-      <div class="acciones"><button class="btn btn-principal" style="flex:1">Guardar</button>${p ? `<button type="button" class="btn btn-peligro" data-a="borrar-prod" data-id="${p.id}">Eliminar</button>` : ""}</div>`,
-      async (fd) => {
-        await api(p ? "PUT" : "POST", p ? `/admin/api/productos/${p.id}` : "/admin/api/productos", { nombre: fd.get("nombre"), descripcion: fd.get("descripcion"), precio: fd.get("precio"), categoria_id: fd.get("categoria_id"), imagen: fd.get("imagen"), activo: fd.has("activo") });
-        $("dlgForm").close(); toast("Producto guardado"); vistaMenu();
-      });
+  // Bloque de foto (producto o categoría): sube la imagen achicada y guarda su URL en #imgUrl
+  const htmlFoto = (url, ayuda) => `<div class="campo"><span>Foto <small>${ayuda}</small></span>
+        <img id="prev" class="vista-previa" alt="" ${url ? `src="${esc(url)}"` : "hidden"}>
+        <input type="hidden" name="imagen" id="imgUrl" value="${esc(url)}"><input type="file" id="imgArchivo" accept="image/jpeg,image/png,image/webp">
+        <button type="button" class="btn btn-chico" data-a="quitar-foto" style="margin-top:6px">Quitar foto</button></div>`;
+  function enlazarFoto() {
     $("imgArchivo").onchange = seguro(async (e) => {
       const f = e.target.files[0]; if (!f) return;
       const blob = await reducirImagen(f);
@@ -361,6 +339,35 @@
       const { url } = await api("POST", "/admin/api/imagenes", fd);
       $("imgUrl").value = url; $("prev").src = url; $("prev").hidden = false;
     });
+  }
+  function formCategoria(c) {
+    abrirForm(c ? "Editar categoría" : "Nueva categoría", `
+      <label class="campo"><span>Nombre</span><input name="nombre" required maxlength="80" value="${esc(c?.nombre)}"></label>
+      <div class="fila-campos"><label class="campo"><span>Ícono (emoji)</span><input name="icono" maxlength="8" value="${esc(c?.icono || "🍽️")}"></label>
+      <label class="campo"><span>Orden</span><input name="orden" type="number" value="${c?.orden ?? estado.menu.length}"></label></div>
+      ${htmlFoto(c?.imagen, "(la usan los productos que no tienen foto propia)")}
+      <label class="campo"><input type="checkbox" name="activo" ${c?.activo !== false ? "checked" : ""}> Visible en el menú</label>
+      <div class="acciones"><button class="btn btn-principal" style="flex:1">Guardar</button>${c ? `<button type="button" class="btn btn-peligro" data-a="borrar-cat" data-id="${c.id}">Eliminar</button>` : ""}</div>`,
+      async (fd) => {
+        await api(c ? "PUT" : "POST", c ? `/admin/api/categorias/${c.id}` : "/admin/api/categorias", { nombre: fd.get("nombre"), icono: fd.get("icono"), orden: fd.get("orden"), imagen: fd.get("imagen"), activo: fd.has("activo") });
+        $("dlgForm").close(); toast("Categoría guardada"); vistaMenu();
+      });
+    enlazarFoto();
+  }
+  function formProducto(p, categoriaId) {
+    abrirForm(p ? "Editar producto" : "Nuevo producto", `
+      <label class="campo"><span>Nombre</span><input name="nombre" required maxlength="120" value="${esc(p?.nombre)}"></label>
+      <label class="campo"><span>Descripción <small>(opcional)</small></span><textarea name="descripcion" rows="2" maxlength="300">${esc(p?.descripcion)}</textarea></label>
+      <div class="fila-campos"><label class="campo"><span>Precio ($)</span><input name="precio" type="number" inputmode="decimal" min="0" step="any" required value="${p?.precio ?? ""}"></label>
+      <label class="campo"><span>Categoría</span><select name="categoria_id">${estado.menu.map((c) => `<option value="${c.id}" ${(p?.categoria_id ?? categoriaId) == c.id ? "selected" : ""}>${c.icono} ${esc(c.nombre)}</option>`).join("")}</select></label></div>
+      ${htmlFoto(p?.imagen, "(si no subís una, usa la de la categoría)")}
+      <label class="campo"><input type="checkbox" name="activo" ${p?.activo !== false ? "checked" : ""}> Disponible (destildalo si se acabó)</label>
+      <div class="acciones"><button class="btn btn-principal" style="flex:1">Guardar</button>${p ? `<button type="button" class="btn btn-peligro" data-a="borrar-prod" data-id="${p.id}">Eliminar</button>` : ""}</div>`,
+      async (fd) => {
+        await api(p ? "PUT" : "POST", p ? `/admin/api/productos/${p.id}` : "/admin/api/productos", { nombre: fd.get("nombre"), descripcion: fd.get("descripcion"), precio: fd.get("precio"), categoria_id: fd.get("categoria_id"), imagen: fd.get("imagen"), activo: fd.has("activo") });
+        $("dlgForm").close(); toast("Producto guardado"); vistaMenu();
+      });
+    enlazarFoto();
   }
   function reducirImagen(archivo, max = 900) {
     return new Promise((ok, mal) => {
@@ -427,7 +434,9 @@
         <label class="campo"><span>Cantidad de mesas</span><input name="cantidad_mesas" type="number" min="1" max="100" required value="${a.cantidad_mesas}"></label></div>
         <label class="campo"><input type="checkbox" name="recibir_pedidos" ${a.recibir_pedidos ? "checked" : ""}> Recibir pedidos de mesa desde el celular <small>(destildalo para pausarlos)</small></label>
         <label class="campo"><input type="checkbox" name="recibir_delivery" ${a.recibir_delivery ? "checked" : ""}> Recibir pedidos de delivery <small>(destildalo cuando no puedas enviar)</small></label>
-        <div class="fila-campos"><label class="campo"><span>Costo de envío ($)</span><input name="costo_envio" type="number" inputmode="decimal" min="0" step="any" value="${a.costo_envio || 0}"></label><div></div></div>
+        <div class="fila-campos"><label class="campo"><span>Costo de envío ($)</span><input name="costo_envio" type="number" inputmode="decimal" min="0" step="any" value="${a.costo_envio || 0}"></label>
+        <label class="campo"><span>Tiempo estimado de entrega</span><input name="tiempo_estimado" maxlength="20" placeholder="30-45 min" value="${esc(a.tiempo_estimado)}"></label></div>
+        <label class="campo"><span>Dirección del local <small>(se muestra en Horarios)</small></span><input name="direccion_local" maxlength="120" placeholder="Av. San Martín 123, La Banda" value="${esc(a.direccion_local)}"></label>
         <label class="campo"><span>Datos para transferencias <small>(se muestran al cliente que elige pagar por transferencia)</small></span><textarea name="transferencia_info" rows="3" maxlength="300" placeholder="Alias: street.burger&#10;CBU: 0000000000000000000000&#10;Titular: ...">${esc(a.transferencia_info)}</textarea></label>
         <button class="btn btn-principal">Guardar</button></form></div>
       <div class="tarjeta"><h3>QR de las mesas</h3>
@@ -436,7 +445,7 @@
         <div class="qr-grid" id="qrGrid"></div></div>`;
     $("formAj").onsubmit = seguro(async (e) => {
       e.preventDefault(); const fd = new FormData(e.target);
-      estado.ajustes = (await api("PUT", "/admin/api/ajustes", { nombre_local: fd.get("nombre_local"), cantidad_mesas: fd.get("cantidad_mesas"), recibir_pedidos: fd.has("recibir_pedidos"), recibir_delivery: fd.has("recibir_delivery"), costo_envio: fd.get("costo_envio") || 0, transferencia_info: fd.get("transferencia_info") })).ajustes;
+      estado.ajustes = (await api("PUT", "/admin/api/ajustes", { nombre_local: fd.get("nombre_local"), cantidad_mesas: fd.get("cantidad_mesas"), recibir_pedidos: fd.has("recibir_pedidos"), recibir_delivery: fd.has("recibir_delivery"), costo_envio: fd.get("costo_envio") || 0, tiempo_estimado: fd.get("tiempo_estimado"), direccion_local: fd.get("direccion_local"), transferencia_info: fd.get("transferencia_info") })).ajustes;
       $("nombreLocal").textContent = estado.ajustes.nombre_local;
       toast("Ajustes guardados"); pintarQR();
     });

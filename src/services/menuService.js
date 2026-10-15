@@ -20,10 +20,17 @@ async function menuAdmin() {
   });
 }
 
+const IMAGEN_OK = /^\/(uploads|img)\/[\w.-]+$/;
+function imagenValida(v) {
+  const imagen = String(v || "").trim();
+  if (imagen && !IMAGEN_OK.test(imagen) && !/^https?:\/\//i.test(imagen)) throw new ErrorNegocio("Imagen inválida");
+  return imagen.slice(0, 255);
+}
+
 function datosCategoria(b) {
   const nombre = String(b.nombre || "").trim().slice(0, 80);
   if (!nombre) throw new ErrorNegocio("La categoría necesita un nombre");
-  return { nombre, icono: String(b.icono || "🍽️").trim().slice(0, 8) || "🍽️", orden: Number.parseInt(b.orden) || 0, activo: b.activo !== false };
+  return { nombre, imagen: imagenValida(b.imagen), icono: String(b.icono || "🍽️").trim().slice(0, 8) || "🍽️", orden: Number.parseInt(b.orden) || 0, activo: b.activo !== false };
 }
 
 function datosProducto(b) {
@@ -33,11 +40,10 @@ function datosProducto(b) {
   if (!nombre) throw new ErrorNegocio("El producto necesita un nombre");
   if (!(precio >= 0)) throw new ErrorNegocio("Poné un precio válido");
   if (!(costo >= 0)) throw new ErrorNegocio("El costo no es válido");
-  const imagen = String(b.imagen || "").trim();
-  if (imagen && !/^\/uploads\/[\w.-]+$/.test(imagen) && !/^https?:\/\//i.test(imagen)) throw new ErrorNegocio("Imagen inválida");
+  const imagen = imagenValida(b.imagen);
   return {
     categoria_id: Number(b.categoria_id),
-    nombre, precio: redondear(precio), costo: redondear(costo), imagen: imagen.slice(0, 255),
+    nombre, precio: redondear(precio), costo: redondear(costo), imagen,
     descripcion: String(b.descripcion || "").trim().slice(0, 300),
     orden: Number.parseInt(b.orden) || 0,
     activo: b.activo !== false,

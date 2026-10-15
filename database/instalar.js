@@ -13,7 +13,7 @@ async function crearBaseSiFalta() {
 }
 
 const MENU = [
-  ["☕", "Cafetería", [
+  ["☕", "Cafetería", "/img/cafe.webp", [
     ["Café espresso", "Intenso y cremoso", 2200, 700],
     ["Cortado", "Espresso con un toque de leche", 2500, 800],
     ["Café con leche", "Taza grande, leche vaporizada", 3200, 1000],
@@ -21,37 +21,37 @@ const MENU = [
     ["Latte", "Suave, con arte latte", 3800, 1200],
     ["Submarino", "Chocolate negro en leche caliente", 4200, 1500],
   ]],
-  ["🥐", "Panificados", [
+  ["🥐", "Panificados", "/img/medialunas.webp", [
     ["Medialuna", "Manteca, al horno", 900, 300],
     ["Tostado de jamón y queso", "En pan de miga", 4500, 1700],
     ["Croissant relleno", "Jamón, queso y tomate", 4200, 1500],
   ]],
-  ["🍰", "Tortas y dulces", [
+  ["🍰", "Tortas y dulces", "", [
     ["Cookie de chips", "Chips de chocolate", 2800, 900],
     ["Porción de torta", "Consultá los sabores del día", 5200, 1900],
     ["Brownie con dulce de leche", "Tibio, con helado", 5800, 2100],
   ]],
-  ["🍔", "Hamburguesas", [
+  ["🍔", "Hamburguesas", "/img/hamburguesa.webp", [
     ["Street Burger clásica", "Carne smash, cheddar, lechuga, tomate y salsa de la casa", 8900, 3500],
     ["Bacon Cheese", "Doble carne, panceta crocante y cheddar", 10900, 4400],
     ["BBQ Onion", "Carne, cebolla caramelizada y salsa barbacoa", 9900, 3900],
     ["Veggie", "Medallón de garbanzos, rúcula y tomate", 8500, 3200],
   ]],
-  ["🍕", "Pizzas", [
+  ["🍕", "Pizzas", "/img/pizza.webp", [
     ["Muzzarella", "Salsa de tomate, muzzarella y aceitunas", 9500, 3300],
     ["Napolitana", "Muzzarella, tomate fresco y ajo", 10500, 3800],
     ["Fugazzeta", "Cebolla y muzzarella", 10500, 3700],
   ]],
-  ["🌭", "Panchos", [
+  ["🌭", "Panchos", "/img/pancho.webp", [
     ["Pancho clásico", "Salchicha, pan de viena y salsas", 4500, 1500],
     ["Pancho completo", "Con papas pay, cheddar y panceta", 6200, 2200],
   ]],
-  ["🍟", "Papas fritas", [
+  ["🍟", "Papas fritas", "/img/papas-fritas.webp", [
     ["Papas fritas", "Porción para compartir", 5500, 1700],
     ["Papas con cheddar y panceta", "Gratinadas", 7900, 2800],
   ]],
-  ["🥤", "Bebidas", [
-    ["Gaseosa 500 ml", "Línea Coca-Cola", 2500, 1000],
+  ["🥤", "Bebidas", "", [
+    ["Gaseosa 500 ml", "Línea Coca-Cola", 2500, 1000, "/img/bebida-coca-cola.webp"],
     ["Agua mineral", "Con o sin gas", 1800, 600],
     ["Cerveza artesanal", "Pinta, consultá variedades", 5000, 2000],
     ["Limonada", "Con menta y jengibre", 3500, 900],
@@ -68,9 +68,9 @@ const MENU = [
     console.log(reset ? "🗑️  Tablas recreadas desde cero." : "✅ Tablas listas.");
 
     if (!(await db.Categoria.count())) {
-      for (const [i, [icono, nombre, productos]] of MENU.entries()) {
-        const cat = await db.Categoria.create({ nombre, icono, orden: i });
-        await db.Producto.bulkCreate(productos.map(([n, d, precio, costo], j) => ({ categoria_id: cat.id, nombre: n, descripcion: d, precio, costo, orden: j })));
+      for (const [i, [icono, nombre, imagen, productos]] of MENU.entries()) {
+        const cat = await db.Categoria.create({ nombre, icono, imagen, orden: i });
+        await db.Producto.bulkCreate(productos.map(([n, d, precio, costo, foto], j) => ({ categoria_id: cat.id, nombre: n, descripcion: d, precio, costo, imagen: foto || "", orden: j })));
       }
       console.log("🍔 Menú de ejemplo cargado (cambialo desde /admin → Menú).");
     }

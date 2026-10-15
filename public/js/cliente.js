@@ -28,8 +28,12 @@
   }
   function setMesa(n) { mesa = n; guardar("sb_mesa", { n, ts: Date.now() }); pintarMesa(); }
   function pintarMesa() {
-    $("mesaTxt").textContent = mesa ? `Mesa ${mesa}` : "Elegí tu mesa";
-    $("btnMesa").classList.toggle("sin", !mesa);
+    const delivery = modo === "delivery";
+    $("mesaTxt").textContent = delivery ? "Delivery a domicilio" : mesa ? `Mesa ${mesa}` : "Elegí tu mesa";
+    $("btnMesa").classList.toggle("sin", !delivery && !mesa);
+    $("btnMesa").querySelector(".chev").toggleAttribute("hidden", delivery); // (en SVG no existe la propiedad .hidden)
+    $("ubicDerTxt").textContent = delivery && datos.tiempo ? datos.tiempo : "Ver horarios";
+    $("opMesaTxt").textContent = mesa ? `Mesa ${mesa} · cambiar` : "Elegir mesa";
   }
 
   function toast(txt) {
@@ -62,12 +66,13 @@
     const cant = carrito[id]?.cant || 0;
     c.innerHTML = cant
       ? `<div class="stepper"><button data-menos="${id}" aria-label="Quitar uno">−</button><span>${cant}</span><button data-mas="${id}" aria-label="Agregar uno">+</button></div>`
-      : `<button class="btn-mas" data-mas="${id}" ${datos.recibir ? "" : "disabled"}>Agregar</button>`;
+      : `<button class="btn-mas" data-mas="${id}" aria-label="Agregar al pedido" ${datos.recibir ? "" : "disabled"}>+</button>`;
   }
   function pintarBarra() {
     const n = cantidadTotal();
     $("barraCarrito").hidden = n === 0;
     $("bcCant").textContent = n; $("bcTotal").textContent = pesos(totalCarrito());
+    $("insignia").hidden = n === 0; $("insignia").textContent = n;
   }
   const subtotalCarrito = () => totalCarrito();
   const envio = () => (modo === "delivery" ? Number(datos.envio) || 0 : 0);
@@ -115,11 +120,12 @@
     setMesa(Number(b.dataset.mesa)); $("dlgMesa").close();
     const fn = abrirMesas.despues; abrirMesas.despues = null; if (fn) fn();
   });
-  $("btnMesa").onclick = () => abrirMesas();
   $("cambiarMesa").onclick = () => abrirMesas(pintarCarrito);
 
   // ---- Enviar ----
-  $("barraCarrito").onclick = () => { $("carritoError").hidden = true; pintarCarrito(); $("dlgCarrito").showModal(); };
+  function abrirCarrito() { $("carritoError").hidden = true; pintarCarrito(); if (!$("dlgCarrito").open) $("dlgCarrito").showModal(); }
+  $("barraCarrito").onclick = abrirCarrito;
+  $("btnCarritoTop").onclick = abrirCarrito;
   $("btnEnviar").onclick = async () => {
     if (modo === "delivery") return enviarDelivery();
     if (!mesa) return abrirMesas(() => $("btnEnviar").click());
@@ -195,7 +201,6 @@
     try { await post(`/api/mesas/${mesa}/aviso`, { tipo }); mostrarMsg("¡Listo! Ya le avisamos al mozo, enseguida vamos."); }
     catch (err) { mostrarMsg(err.message, true); }
   }
-  $("btnCuenta").onclick = abrirCuenta;
   $("listoCuenta").onclick = () => { $("dlgListo").close(); abrirCuenta(); };
   $("btnPedirCuenta").onclick = () => avisar("cuenta");
   $("btnMozo").onclick = () => avisar("mozo");
@@ -207,54 +212,80 @@
     $("imgHorario").src = t.dataset.tab === "noche" ? "/img/horarios-noche.webp" : "/img/horarios-cafeteria.webp";
   }));
 
-  // ---- Categorías: la activa sigue al scroll, y al tocar una se baja a su sección ----
-  // OJO: no usar scrollIntoView acá: mueve también la página y pelea contra el scroll del usuario.
-  const barra = $("cats");
-  const links = [...document.querySelectorAll(".cat")];
-  let bloqueada = false; // tras tocar una categoría, se respeta hasta que el usuario vuelva a scrollear
-  function marcar(id) {
-    let activa = null;
-    links.forEach((l) => { const si = l.dataset.cat === id; l.classList.toggle("activa", si); if (si) activa = l; });
-    if (activa) { // solo se mueve la barra horizontal, nunca la página
-      const destino = activa.offsetLeft - (barra.clientWidth - activa.offsetWidth) / 2;
-      barra.scrollTo({ left: destino, behavior: "smooth" });
-    }
-  }
+  // ---- Categorías y búsqueda: filtran lo que se ve (sin mover la página a los tirones) ----
   const secciones = [...document.querySelectorAll(".categoria")];
-  const topeFijo = () => document.querySelector(".top").offsetHeight + barra.offsetHeight;
-  function actualizarActiva() {
-    if (bloqueada || !secciones.length) return;
-    const linea = topeFijo() + 40; // la sección "actual" es la última cuyo título ya pasó esta línea
-    let actual = secciones[0];
-    for (const s of secciones) if (s.getBoundingClientRect().top <= linea) actual = s;
-    if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) actual = secciones[secciones.length - 1];
-    if (!actual.dataset.pintada || actual.dataset.cat !== document.querySelector(".cat.activa")?.dataset.cat) marcar(actual.dataset.cat);
-    actual.dataset.pintada = "1";
+  const cats = [...document.querySelectorAll(".cat")];
+  let catSel = "todas", busqueda = "";
+  function filtrar() {
+    let visibles = 0;
+    secciones.forEach((sec) => {
+      const deCat = catSel === "todas" || sec.dataset.cat === catSel;
+      let hay = 0;
+      sec.querySelectorAll(".prod").forEach((pr) => {
+        const ok = deCat && (!busqueda || pr.dataset.txt.includes(busqueda));
+        pr.hidden = !ok; if (ok) hay++;
+      });
+      sec.hidden = hay === 0; visibles += hay;
+      sec.querySelector(".ver-todas").hidden = catSel !== "todas" || !!busqueda; // "Ver todas →" solo en la vista general
+    });
+    $("sinResultados").hidden = visibles > 0 || !secciones.length;
   }
-  let pendiente = false;
-  addEventListener("scroll", () => { if (!pendiente) { pendiente = true; requestAnimationFrame(() => { pendiente = false; actualizarActiva(); }); } }, { passive: true });
-  ["wheel", "touchstart", "keydown"].forEach((ev) => addEventListener(ev, () => { bloqueada = false; }, { passive: true }));
-  barra.addEventListener("click", (e) => {
-    const l = e.target.closest(".cat"); if (!l) return;
-    e.preventDefault();
-    const seccion = document.getElementById(`cat-${l.dataset.cat}`);
-    bloqueada = true; marcar(l.dataset.cat);
-    window.scrollTo({ top: seccion.getBoundingClientRect().top + scrollY - topeFijo() - 8, behavior: "smooth" });
-  });
+  function elegirCategoria(id, subir = true) {
+    catSel = id;
+    cats.forEach((c) => c.classList.toggle("activa", c.dataset.cat === id));
+    const activa = cats.find((c) => c.dataset.cat === id);
+    if (activa) $("cats").scrollTo({ left: activa.offsetLeft - ($("cats").clientWidth - activa.offsetWidth) / 2, behavior: "smooth" });
+    filtrar();
+    if (subir) irAlListado();
+  }
+  function irAlListado() {
+    const y = $("cats").getBoundingClientRect().top + scrollY - document.querySelector(".cab").offsetHeight - ($("buscador").hidden ? 0 : $("buscador").offsetHeight) - 4;
+    if (scrollY > y) window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+  }
+  $("cats").addEventListener("click", (e) => { const c = e.target.closest(".cat"); if (c) elegirCategoria(c.dataset.cat); });
+  document.querySelectorAll(".ver-todas").forEach((b) => (b.onclick = () => elegirCategoria(b.dataset.ver)));
+  $("banner").onclick = (e) => { e.preventDefault(); $("cats").scrollIntoView({ behavior: "smooth", block: "start" }); };
+
+  $("btnBuscar").onclick = () => {
+    const abrir = $("buscador").hidden;
+    $("buscador").hidden = !abrir;
+    if (abrir) $("q").focus();
+    else { $("q").value = ""; busqueda = ""; filtrar(); }
+  };
+  $("q").addEventListener("input", () => { busqueda = $("q").value.trim().toLowerCase(); filtrar(); });
 
   // ---- Modo: en mesa / delivery ----
   function aplicarModo() {
-    const delivery = modo === "delivery";
     guardar("sb_modo", modo);
     document.querySelectorAll(".modo").forEach((b) => b.classList.toggle("activa", b.dataset.modo === modo));
-    $("chipsMesa").hidden = delivery; $("chipDelivery").hidden = !delivery;
-    $("heroSub").textContent = delivery ? "Armá tu pedido, dejanos tus datos y te lo llevamos a tu casa. ♥" : "Elegí tu mesa, armá tu pedido y te lo llevamos. ♥";
+    $("opBorrar").hidden = modo !== "delivery";
+    pintarMesa();
     if ($("dlgCarrito").open) pintarCarrito();
   }
-  document.querySelectorAll(".modo").forEach((b) => (b.onclick = () => { modo = b.dataset.modo; aplicarModo(); if (modo === "mesa" && !mesa) abrirMesas(); }));
+  document.querySelectorAll(".modo").forEach((b) => (b.onclick = () => {
+    modo = b.dataset.modo; aplicarModo();
+    if ($("dlgOpciones").open) $("dlgOpciones").close();
+    if (modo === "mesa" && !mesa) abrirMesas();
+  }));
+
+  // ---- Barra inferior: Inicio · Pedidos · Cuenta ----
+  const tabs = { inicio: $("tabInicio"), pedidos: $("tabPedidos"), cuenta: $("tabCuenta") };
+  function marcarTab(n) { Object.entries(tabs).forEach(([k, el]) => el.classList.toggle("activa", k === n)); }
+  tabs.inicio.onclick = () => { if ($("q").value) { $("q").value = ""; busqueda = ""; } elegirCategoria("todas", false); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  tabs.pedidos.onclick = () => { marcarTab("pedidos"); modo === "delivery" ? abrirCarrito() : abrirCuenta(); };
+  tabs.cuenta.onclick = () => { marcarTab("cuenta"); $("dlgOpciones").showModal(); };
+  document.querySelectorAll("dialog").forEach((d) => d.addEventListener("close", () => marcarTab("inicio")));
+  $("btnMesa").onclick = () => (modo === "delivery" ? $("dlgOpciones").showModal() : abrirMesas());
+  $("ubicDer").onclick = () => $("dlgHorarios").showModal();
+  $("opMesa").onclick = () => { $("dlgOpciones").close(); abrirMesas(); };
+  $("opHorarios").onclick = () => { $("dlgOpciones").close(); $("dlgHorarios").showModal(); };
+  $("opBorrar").onclick = () => {
+    Object.keys(campos).forEach((k) => { delete cliente[k]; $(campos[k]).value = ""; });
+    guardar("sb_cliente", cliente); $("dlgOpciones").close(); toast("Borramos tus datos guardados");
+  };
 
   // ---- Inicio ----
   Object.keys(datos.productos).forEach(pintarControl);
-  pintarBarra(); pintarMesa(); pintarPago(); aplicarModo();
+  pintarBarra(); pintarPago(); aplicarModo(); filtrar();
   if (!mesa && modo === "mesa") setTimeout(() => abrirMesas(), 400);
 })();

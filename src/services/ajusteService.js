@@ -8,6 +8,8 @@ const DEFECTOS = {
   recibir_delivery: "1",
   costo_envio: "0",
   transferencia_info: "",
+  direccion_local: "",
+  tiempo_estimado: "30-45 min",
 };
 
 function armar(filas) {
@@ -20,6 +22,8 @@ function armar(filas) {
     recibir_delivery: out.recibir_delivery === "1",
     costo_envio: Number(out.costo_envio) || 0,
     transferencia_info: out.transferencia_info,
+    direccion_local: out.direccion_local,
+    tiempo_estimado: out.tiempo_estimado,
   };
 }
 
@@ -39,6 +43,8 @@ async function guardar(b) {
     recibir_delivery: b.recibir_delivery ? "1" : "0",
     costo_envio: String(Math.round(envio * 100) / 100),
     transferencia_info: String(b.transferencia_info || "").trim().slice(0, 300),
+    direccion_local: String(b.direccion_local || "").trim().slice(0, 120),
+    tiempo_estimado: String(b.tiempo_estimado || "").trim().slice(0, 20),
   };
   for (const [clave, valor] of Object.entries(pares)) await Ajuste.upsert({ clave, valor });
   return todos();
