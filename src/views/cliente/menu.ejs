@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#14110f">
+  <title><%= config.nombre_local %> · Menú</title>
+  <link rel="icon" href="/img/logo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Montserrat:wght@400;500;600;700&family=Oswald:wght@500;600&family=Playfair+Display:wght@800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/cliente.css">
+</head>
+<body>
+  <header class="top">
+    <div class="marca">
+      <img src="/img/logo.jpg" alt="" class="logo" width="46" height="46">
+      <div>
+        <div class="marca-nombre"><%= config.nombre_local %></div>
+        <div class="marca-sub">Coffee &amp; Burgers</div>
+      </div>
+    </div>
+    <div class="top-acciones">
+      <button class="chip" id="btnCuenta" type="button">🧾 Mi cuenta</button>
+      <button class="chip chip-mesa" id="btnMesa" type="button"><span id="mesaTxt">Elegí tu mesa</span></button>
+    </div>
+  </header>
+
+  <main class="contenedor">
+    <section class="hero">
+      <p class="script">Buena comida, mejores momentos</p>
+      <h1>Nuestro Menú</h1>
+      <p class="hero-sub">Elegí tu mesa, armá tu pedido y te lo llevamos. ♥</p>
+      <button class="btn-claro" id="btnHorarios" type="button">🕒 Ver horarios</button>
+    </section>
+
+    <% if (!config.recibir_pedidos) { %>
+      <div class="aviso">Por ahora no tomamos pedidos desde el celular. Pedile al mozo 🙂</div>
+    <% } %>
+
+    <nav class="cats" id="cats" aria-label="Categorías">
+      <% categorias.forEach((c, i) => { %>
+        <a href="#cat-<%= c.id %>" class="cat<%= i === 0 ? ' activa' : '' %>" data-cat="<%= c.id %>">
+          <span class="cat-icono"><%= c.icono %></span>
+          <span class="cat-nombre"><%= c.nombre %></span>
+        </a>
+      <% }) %>
+    </nav>
+
+    <% if (!categorias.length) { %><p class="vacio">El menú se está actualizando. ¡Volvé en un ratito!</p><% } %>
+
+    <% categorias.forEach((c) => { %>
+      <section class="categoria" id="cat-<%= c.id %>" data-cat="<%= c.id %>">
+        <h2><%= c.icono %> <%= c.nombre %></h2>
+        <div class="grilla">
+          <% c.productos.forEach((p) => { %>
+            <article class="prod" data-id="<%= p.id %>">
+              <div class="prod-img<%= p.imagen ? '' : ' sin-foto' %>">
+                <% if (p.imagen) { %><img src="<%= p.imagen %>" alt="<%= p.nombre %>" loading="lazy"><% } else { %><span><%= c.icono %></span><% } %>
+              </div>
+              <div class="prod-info">
+                <h3><%= p.nombre %></h3>
+                <% if (p.descripcion) { %><p class="prod-desc"><%= p.descripcion %></p><% } %>
+                <div class="prod-pie">
+                  <span class="precio"><%= formatoPrecio(p.precio) %></span>
+                  <div class="control" data-control="<%= p.id %>"></div>
+                </div>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+    <% }) %>
+
+    <footer class="pie">
+      <img src="/img/logo.jpg" alt="" width="56" height="56" class="logo">
+      <p class="script">Buena compañía siempre</p>
+    </footer>
+  </main>
+
+  <button class="barra-carrito" id="barraCarrito" type="button" hidden>
+    <span class="bc-cant" id="bcCant">0</span>
+    <span class="bc-txt">Ver mi pedido</span>
+    <span class="bc-total" id="bcTotal">$0</span>
+  </button>
+
+  <!-- Elegir mesa -->
+  <dialog id="dlgMesa">
+    <div class="dlg-cab"><h2>¿En qué mesa estás?</h2><button class="cerrar" data-cerrar aria-label="Cerrar">✕</button></div>
+    <p class="dlg-sub">Tocá el número que figura en tu mesa.</p>
+    <div class="mesas" id="gridMesas"></div>
+  </dialog>
+
+  <!-- Mi pedido (carrito) -->
+  <dialog id="dlgCarrito" class="hoja">
+    <div class="dlg-cab"><h2>Tu pedido</h2><button class="cerrar" data-cerrar aria-label="Cerrar">✕</button></div>
+    <div class="para-mesa">Para la <strong id="carritoMesa">mesa</strong> <button type="button" class="link" id="cambiarMesa">cambiar</button></div>
+    <div id="carritoLista" class="lista"></div>
+    <div class="total-fila"><span>Total de este pedido</span><strong id="carritoTotal">$0</strong></div>
+    <p class="nota-peq">Si después querés algo más, pedilo de nuevo o avisale al mozo. Pagás al final, en la mesa.</p>
+    <p class="error" id="carritoError" role="alert" hidden></p>
+    <button class="btn-principal" id="btnEnviar" type="button">Enviar pedido</button>
+  </dialog>
+
+  <!-- Pedido enviado -->
+  <dialog id="dlgListo" class="hoja">
+    <div class="listo">
+      <div class="listo-ok">✓</div>
+      <h2>¡Pedido enviado!</h2>
+      <p id="listoTxt">Ya lo recibimos.</p>
+      <button class="btn-principal" data-cerrar type="button">Seguir mirando el menú</button>
+      <button class="btn-sec" id="listoCuenta" type="button">Ver mi cuenta</button>
+    </div>
+  </dialog>
+
+  <!-- Mi cuenta -->
+  <dialog id="dlgCuenta" class="hoja">
+    <div class="dlg-cab"><h2>Mi cuenta · <span id="cuentaMesa"></span></h2><button class="cerrar" data-cerrar aria-label="Cerrar">✕</button></div>
+    <div id="cuentaLista" class="lista"></div>
+    <div class="total-fila" id="cuentaTotalFila" hidden><span>Total hasta ahora</span><strong id="cuentaTotal">$0</strong></div>
+    <p class="error" id="cuentaMsg" hidden></p>
+    <div class="dos-botones" id="cuentaBotones" hidden>
+      <button class="btn-principal" id="btnPedirCuenta" type="button">🧾 Pedir la cuenta</button>
+      <button class="btn-sec" id="btnMozo" type="button">🙋 Llamar al mozo</button>
+    </div>
+  </dialog>
+
+  <!-- Horarios -->
+  <dialog id="dlgHorarios" class="hoja ancha">
+    <div class="dlg-cab"><h2>Horarios</h2><button class="cerrar" data-cerrar aria-label="Cerrar">✕</button></div>
+    <div class="tabs">
+      <button class="tab activa" data-tab="cafe" type="button">☕ Cafetería</button>
+      <button class="tab" data-tab="noche" type="button">🌙 Noche</button>
+    </div>
+    <img id="imgHorario" src="/img/horarios-cafeteria.webp" alt="Horarios" class="horario-img">
+  </dialog>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script type="application/json" id="datos"><%- JSON.stringify({
+    mesas: config.cantidad_mesas,
+    mesaUrl,
+    recibir: config.recibir_pedidos,
+    productos: Object.fromEntries(categorias.flatMap((c) => c.productos.map((p) => [p.id, { nombre: p.nombre, precio: p.precio, icono: c.icono }])))
+  }).replace(/</g, "\\u003c") %></script>
+  <script src="/js/cliente.js"></script>
+</body>
+</html>

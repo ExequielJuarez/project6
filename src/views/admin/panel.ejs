@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#14110f">
+  <title>Panel · Street Burger</title>
+  <link rel="icon" href="/img/logo.jpg">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Montserrat:wght@400;500;600;700&family=Oswald:wght@500;600&family=Playfair+Display:wght@800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <header class="barra">
+    <div class="marca"><img src="/img/logo.jpg" alt="" class="logo" width="38" height="38"><span class="marca-nombre">Panel</span></div>
+    <nav class="nav" id="nav">
+      <button data-vista="mesas" class="activa"><i>🍽️</i><span>Mesas</span><b class="pastilla" id="pastillaMesas" hidden></b></button>
+      <button data-vista="menu"><i>📋</i><span>Menú</span></button>
+      <button data-vista="caja"><i>💵</i><span>Caja</span></button>
+      <button data-vista="ganancias"><i>📈</i><span>Ganancias</span></button>
+      <button data-vista="historial"><i>🧾</i><span>Historial</span></button>
+      <button data-vista="ajustes"><i>⚙️</i><span>Ajustes</span></button>
+    </nav>
+    <div class="barra-der">
+      <button class="icono-btn" id="btnSonido" title="Sonido de pedidos nuevos" type="button">🔔</button>
+      <form method="post" action="/admin/logout"><button class="icono-btn" title="Salir" type="submit">⎋</button></form>
+    </div>
+  </header>
+
+  <main class="contenedor">
+    <section id="vista-mesas" class="vista"></section>
+    <section id="vista-menu" class="vista" hidden></section>
+    <section id="vista-caja" class="vista" hidden></section>
+    <section id="vista-ganancias" class="vista" hidden></section>
+    <section id="vista-historial" class="vista" hidden></section>
+    <section id="vista-ajustes" class="vista" hidden></section>
+  </main>
+
+  <!-- Cuenta de una mesa -->
+  <dialog id="dlgMesa" class="grande"></dialog>
+  <!-- Agregar productos a una cuenta -->
+  <dialog id="dlgAgregar" class="grande"></dialog>
+  <!-- Cobrar -->
+  <dialog id="dlgCobro"></dialog>
+  <!-- Ticket -->
+  <dialog id="dlgTicket"></dialog>
+  <!-- Formularios del menú y caja -->
+  <dialog id="dlgForm"></dialog>
+
+  <div id="zonaImpresion" aria-hidden="true"></div>
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
+  <script src="/js/admin.js" defer></script>
+</body>
+</html>

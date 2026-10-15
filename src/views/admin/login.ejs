@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Panel · Ingresar</title>
+  <link rel="icon" href="/img/logo.jpg">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="login-body">
+  <form class="login" method="post" action="/admin/login" autocomplete="on">
+    <img src="/img/logo.jpg" alt="" class="logo" width="84" height="84">
+    <h1>Panel del local</h1>
+    <% if (!configurada) { %>
+      <p class="error">Falta definir <code>ADMIN_PASSWORD</code> en el archivo <code>.env</code> del servidor.</p>
+    <% } else { %>
+      <label for="clave">Contraseña</label>
+      <input id="clave" name="clave" type="password" required autofocus autocomplete="current-password">
+      <% if (error) { %><p class="error"><%= error %></p><% } %>
+      <button class="btn btn-principal" type="submit">Ingresar</button>
+    <% } %>
+  </form>
+</body>
+</html>
