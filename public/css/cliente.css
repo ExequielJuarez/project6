@@ -21,7 +21,7 @@
   --f-texto: "Montserrat", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html { scroll-behavior: smooth; scroll-padding-top: calc(var(--alto-top) + 110px); -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; font-family: var(--f-texto); color: var(--cafe); line-height: 1.45; min-height: 100vh;
   background: var(--bg);
@@ -173,4 +173,4 @@ dialog.ancha { width: min(94vw, 560px); }
   .grilla { grid-template-columns: repeat(3, 1fr); }
   .cats { justify-content: center; }
 }
-@media (prefers-reduced-motion: reduce) { * { animation: none !important; scroll-behavior: auto !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

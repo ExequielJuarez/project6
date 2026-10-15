@@ -156,18 +156,40 @@
     $("imgHorario").src = t.dataset.tab === "noche" ? "/img/horarios-noche.webp" : "/img/horarios-cafeteria.webp";
   }));
 
-  // ---- Categoría activa mientras se desplaza ----
+  // ---- Categorías: la activa sigue al scroll, y al tocar una se baja a su sección ----
+  // OJO: no usar scrollIntoView acá: mueve también la página y pelea contra el scroll del usuario.
+  const barra = $("cats");
   const links = [...document.querySelectorAll(".cat")];
-  if ("IntersectionObserver" in window) {
-    const io = new IntersectionObserver((entradas) => {
-      entradas.filter((e) => e.isIntersecting).forEach((e) => {
-        links.forEach((l) => l.classList.toggle("activa", l.dataset.cat === e.target.dataset.cat));
-        const activa = links.find((l) => l.classList.contains("activa"));
-        activa?.scrollIntoView({ inline: "center", block: "nearest" });
-      });
-    }, { rootMargin: "-30% 0px -60% 0px" });
-    document.querySelectorAll(".categoria").forEach((s) => io.observe(s));
+  let bloqueada = false; // tras tocar una categoría, se respeta hasta que el usuario vuelva a scrollear
+  function marcar(id) {
+    let activa = null;
+    links.forEach((l) => { const si = l.dataset.cat === id; l.classList.toggle("activa", si); if (si) activa = l; });
+    if (activa) { // solo se mueve la barra horizontal, nunca la página
+      const destino = activa.offsetLeft - (barra.clientWidth - activa.offsetWidth) / 2;
+      barra.scrollTo({ left: destino, behavior: "smooth" });
+    }
   }
+  const secciones = [...document.querySelectorAll(".categoria")];
+  const topeFijo = () => document.querySelector(".top").offsetHeight + barra.offsetHeight;
+  function actualizarActiva() {
+    if (bloqueada || !secciones.length) return;
+    const linea = topeFijo() + 40; // la sección "actual" es la última cuyo título ya pasó esta línea
+    let actual = secciones[0];
+    for (const s of secciones) if (s.getBoundingClientRect().top <= linea) actual = s;
+    if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) actual = secciones[secciones.length - 1];
+    if (!actual.dataset.pintada || actual.dataset.cat !== document.querySelector(".cat.activa")?.dataset.cat) marcar(actual.dataset.cat);
+    actual.dataset.pintada = "1";
+  }
+  let pendiente = false;
+  addEventListener("scroll", () => { if (!pendiente) { pendiente = true; requestAnimationFrame(() => { pendiente = false; actualizarActiva(); }); } }, { passive: true });
+  ["wheel", "touchstart", "keydown"].forEach((ev) => addEventListener(ev, () => { bloqueada = false; }, { passive: true }));
+  barra.addEventListener("click", (e) => {
+    const l = e.target.closest(".cat"); if (!l) return;
+    e.preventDefault();
+    const seccion = document.getElementById(`cat-${l.dataset.cat}`);
+    bloqueada = true; marcar(l.dataset.cat);
+    window.scrollTo({ top: seccion.getBoundingClientRect().top + scrollY - topeFijo() - 8, behavior: "smooth" });
+  });
 
   // ---- Inicio ----
   Object.keys(datos.productos).forEach(pintarControl);
