@@ -20,18 +20,25 @@
         <div class="marca-sub">Coffee &amp; Burgers</div>
       </div>
     </div>
-    <div class="top-acciones">
+    <div class="top-acciones" id="chipsMesa">
       <button class="chip" id="btnCuenta" type="button">🧾 Mi cuenta</button>
       <button class="chip chip-mesa" id="btnMesa" type="button"><span id="mesaTxt">Elegí tu mesa</span></button>
     </div>
+    <div class="top-acciones" id="chipDelivery" hidden><span class="chip chip-mesa">🛵 Delivery</span></div>
   </header>
 
   <main class="contenedor">
+    <% if (config.recibir_delivery) { %>
+    <div class="modos" id="modos" role="tablist" aria-label="Tipo de pedido">
+      <button type="button" class="modo activa" data-modo="mesa" role="tab">🍽️ En mesa</button>
+      <button type="button" class="modo" data-modo="delivery" role="tab">🛵 Delivery</button>
+    </div>
+    <% } %>
     <section class="hero">
       <img src="/img/logo.jpg" alt="" class="logo" width="70" height="70">
       <p class="script">Buena comida, mejores momentos</p>
       <h1>Nuestro Menú</h1>
-      <p class="hero-sub">Elegí tu mesa, armá tu pedido y te lo llevamos. ♥</p>
+      <p class="hero-sub" id="heroSub">Elegí tu mesa, armá tu pedido y te lo llevamos. ♥</p>
       <button class="btn-claro" id="btnHorarios" type="button">🕒 Ver horarios</button>
     </section>
 
@@ -95,10 +102,26 @@
   <!-- Mi pedido (carrito) -->
   <dialog id="dlgCarrito" class="hoja">
     <div class="dlg-cab"><h2>Tu pedido</h2><button class="cerrar" data-cerrar aria-label="Cerrar">✕</button></div>
-    <div class="para-mesa">Para la <strong id="carritoMesa">mesa</strong> <button type="button" class="link" id="cambiarMesa">cambiar</button></div>
+    <div class="para-mesa" id="paraMesa">Para la <strong id="carritoMesa">mesa</strong> <button type="button" class="link" id="cambiarMesa">cambiar</button></div>
     <div id="carritoLista" class="lista"></div>
-    <div class="total-fila"><span>Total de este pedido</span><strong id="carritoTotal">$0</strong></div>
-    <p class="nota-peq">Si después querés algo más, pedilo de nuevo o avisale al mozo. Pagás al final, en la mesa.</p>
+    <div id="datosDelivery" class="datos" hidden>
+      <h3>Tus datos para la entrega</h3>
+      <label class="campo"><span>Nombre</span><input id="dNombre" autocomplete="name" maxlength="60" placeholder="¿A nombre de quién?"></label>
+      <label class="campo"><span>WhatsApp</span><input id="dTel" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" placeholder="Ej: 11 5555 1234"></label>
+      <label class="campo"><span>Dirección de entrega</span><input id="dDir" autocomplete="street-address" maxlength="150" placeholder="Calle, número y localidad"></label>
+      <label class="campo"><span>Referencias <small>(opcional)</small></span><input id="dRef" maxlength="200" placeholder="Piso, timbre, entre calles…"></label>
+      <div class="campo"><span>¿Cómo pagás?</span>
+        <div class="pagos" id="dPagos">
+          <button type="button" class="pago activa" data-pago="efectivo">💵 Efectivo</button>
+          <button type="button" class="pago" data-pago="transferencia">🏦 Transferencia</button>
+          <button type="button" class="pago" data-pago="tarjeta">💳 Débito</button>
+        </div></div>
+      <label class="campo" id="dPagoConBox"><span>¿Con cuánto abonás? <small>(opcional, para llevarte el vuelto)</small></span><input id="dPagoCon" type="number" inputmode="decimal" min="0" placeholder="Ej: 20000"></label>
+      <p class="nota-peq" id="dTransf" hidden></p>
+    </div>
+    <div class="desglose" id="carritoDesglose" hidden></div>
+    <div class="total-fila"><span id="totalEtq">Total de este pedido</span><strong id="carritoTotal">$0</strong></div>
+    <p class="nota-peq" id="notaCarrito">Si después querés algo más, pedilo de nuevo o avisale al mozo. Pagás al final, en la mesa.</p>
     <p class="error" id="carritoError" role="alert" hidden></p>
     <button class="btn-principal" id="btnEnviar" type="button">Enviar pedido</button>
   </dialog>
@@ -109,6 +132,7 @@
       <div class="listo-ok">✓</div>
       <h2>¡Pedido enviado!</h2>
       <p id="listoTxt">Ya lo recibimos.</p>
+      <p class="info-transf" id="listoTransf" hidden></p>
       <button class="btn-principal" data-cerrar type="button">Seguir mirando el menú</button>
       <button class="btn-sec" id="listoCuenta" type="button">Ver mi cuenta</button>
     </div>
@@ -142,6 +166,9 @@
     mesas: config.cantidad_mesas,
     mesaUrl,
     recibir: config.recibir_pedidos,
+    delivery: config.recibir_delivery,
+    envio: config.costo_envio,
+    transferencia: config.transferencia_info,
     productos: Object.fromEntries(categorias.flatMap((c) => c.productos.map((p) => [p.id, { nombre: p.nombre, precio: p.precio, icono: c.icono }])))
   }).replace(/</g, "\\u003c") %></script>
   <script src="/js/cliente.js"></script>

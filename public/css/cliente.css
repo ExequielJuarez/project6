@@ -20,6 +20,7 @@
   --f-script: "Caveat", "Segoe Script", cursive;
   --f-texto: "Montserrat", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
+[hidden] { display: none !important; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html { -webkit-text-size-adjust: 100%; }
 body {
@@ -51,6 +52,12 @@ img { max-width: 100%; }
 @media (max-width: 360px) { #btnCuenta { padding: 8px 10px; font-size: .74rem; } .chip { padding: 7px 10px; } }
 
 .contenedor { max-width: 1160px; margin: 0 auto; padding: 0 var(--gut); }
+
+/* ---------- Mesa / Delivery ---------- */
+.modos { display: flex; gap: 6px; margin: 14px 0 0; padding: 5px; background: var(--latte); border-radius: 999px; }
+.modo { flex: 1; border: 0; background: transparent; padding: 11px 8px; border-radius: 999px; font-weight: 700; font-size: .92rem; color: var(--suave); }
+.modo.activa { background: var(--cafe); color: #fff8ea; box-shadow: 0 6px 14px rgba(62,44,32,.25); }
+@media (min-width: 700px) { .modos { max-width: 420px; margin-left: auto; margin-right: auto; } }
 
 /* ---------- Portada ---------- */
 .hero {
@@ -162,6 +169,23 @@ dialog.ancha { width: min(94vw, 560px); }
 .pie .script { color: var(--caramelo-osc); font-size: 1.6rem; margin-top: 8px; }
 .toast { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: 90px; background: var(--cafe); color: #fff8ea; padding: 10px 16px; border-radius: 999px; font-weight: 600; font-size: .85rem; box-shadow: 0 8px 24px rgba(62,44,32,.4); max-width: 90vw; }
 .toast[hidden] { display: none; }
+
+/* ---------- Datos del delivery ---------- */
+.datos { border-top: 2px solid var(--cafe); padding-top: 14px; margin-bottom: 6px; }
+.datos h3 { font-family: var(--f-titulo); font-weight: 800; font-size: 1.15rem; margin-bottom: 10px; }
+.campo { display: block; font-size: .78rem; font-weight: 700; margin: 0 0 12px; }
+.campo > span { display: block; margin-bottom: 5px; }
+.campo small { font-weight: 400; color: var(--suave); }
+.campo input { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--latte2); background: var(--bg); color: var(--cafe); font: inherit; font-size: 16px; /* 16px: evita el zoom automático en iPhone */ }
+.campo input:focus { outline: 2px solid var(--caramelo); outline-offset: 1px; }
+.campo input.mal { border-color: var(--terracota); background: #fdeeea; }
+.pagos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+@media (max-width: 380px) { .pagos { grid-template-columns: 1fr; } }
+.pago { padding: 11px 4px; border-radius: 14px; border: 2px solid var(--latte2); background: var(--bg); font-weight: 700; font-size: .8rem; }
+.pago.activa { background: var(--cafe); border-color: var(--cafe); color: #fff8ea; }
+.desglose { font-size: .88rem; color: var(--suave); margin-bottom: 4px; }
+.desglose div { display: flex; justify-content: space-between; padding: 2px 0; }
+.info-transf { background: var(--latte); border-radius: 14px; padding: 12px 14px; margin: 0 0 14px; font-size: .88rem; text-align: left; white-space: pre-line; color: var(--cafe); }
 
 /* ---------- Tablet / PC ---------- */
 @media (min-width: 700px) {

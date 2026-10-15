@@ -14,6 +14,11 @@
   let carrito = leer("sb_carrito", {}); // { idProducto: { cant, nota } }
   Object.keys(carrito).forEach((id) => { if (!datos.productos[id]) delete carrito[id]; });
 
+  // Modo: en mesa o delivery (si el local no tiene delivery, siempre mesa)
+  let modo = datos.delivery && leer("sb_modo", "mesa") === "delivery" ? "delivery" : "mesa";
+  let pago = "efectivo";
+  const cliente = leer("sb_cliente", {});
+
   const m = leer("sb_mesa", null);
   if (datos.mesaUrl && datos.mesaUrl >= 1 && datos.mesaUrl <= datos.mesas) {
     setMesa(datos.mesaUrl); // vino por el QR de la mesa
@@ -64,8 +69,16 @@
     $("barraCarrito").hidden = n === 0;
     $("bcCant").textContent = n; $("bcTotal").textContent = pesos(totalCarrito());
   }
+  const subtotalCarrito = () => totalCarrito();
+  const envio = () => (modo === "delivery" ? Number(datos.envio) || 0 : 0);
   function pintarCarrito() {
+    const delivery = modo === "delivery";
+    $("paraMesa").hidden = delivery; $("datosDelivery").hidden = !delivery;
     $("carritoMesa").textContent = mesa ? `mesa ${mesa}` : "mesa (sin elegir)";
+    $("notaCarrito").textContent = delivery ? "Te escribimos por WhatsApp para confirmar tu pedido. El pago se hace al recibirlo." : "Si después querés algo más, pedilo de nuevo o avisale al mozo. Pagás al final, en la mesa.";
+    $("totalEtq").textContent = delivery ? "Total a pagar" : "Total de este pedido";
+    $("carritoDesglose").hidden = !(delivery && envio() > 0);
+    $("carritoDesglose").innerHTML = `<div><span>Productos</span><span>${pesos(subtotalCarrito())}</span></div><div><span>Envío</span><span>${pesos(envio())}</span></div>`;
     const ids = Object.keys(carrito);
     $("carritoLista").innerHTML = ids.length ? ids.map((id) => {
       const p = datos.productos[id], l = carrito[id];
@@ -74,9 +87,9 @@
         <div class="stepper"><button data-menos="${id}" aria-label="Quitar uno">−</button><span>${l.cant}</span><button data-mas="${id}" aria-label="Agregar uno">+</button></div></div>
         <div class="fila-nota"><input data-nota="${id}" maxlength="200" placeholder="Aclaración (ej: sin cebolla)" value="${esc(l.nota)}"></div></div>`;
     }).join("") : '<p class="dlg-sub">Todavía no agregaste nada.</p>';
-    $("carritoTotal").textContent = pesos(totalCarrito());
+    $("carritoTotal").textContent = pesos(totalCarrito() + envio());
     $("btnEnviar").disabled = !ids.length;
-    $("btnEnviar").textContent = mesa ? `Enviar pedido a Mesa ${mesa}` : "Elegir mesa y enviar";
+    $("btnEnviar").textContent = delivery ? "Enviar pedido de delivery" : mesa ? `Enviar pedido a Mesa ${mesa}` : "Elegir mesa y enviar";
   }
 
   document.addEventListener("click", (e) => {
@@ -108,6 +121,7 @@
   // ---- Enviar ----
   $("barraCarrito").onclick = () => { $("carritoError").hidden = true; pintarCarrito(); $("dlgCarrito").showModal(); };
   $("btnEnviar").onclick = async () => {
+    if (modo === "delivery") return enviarDelivery();
     if (!mesa) return abrirMesas(() => $("btnEnviar").click());
     const btn = $("btnEnviar"); $("carritoError").hidden = true; btn.disabled = true; btn.textContent = "Enviando…";
     try {
@@ -117,11 +131,48 @@
       Object.keys(datos.productos).forEach(pintarControl); pintarBarra();
       $("dlgCarrito").close();
       $("listoTxt").textContent = `Mesa ${r.mesa}: ya lo recibimos y lo estamos preparando.`;
+      $("listoTransf").hidden = true; $("listoCuenta").hidden = false;
       $("dlgListo").showModal();
     } catch (err) {
       $("carritoError").textContent = err.message; $("carritoError").hidden = false;
     } finally { pintarCarrito(); }
   };
+
+  // ---- Delivery ----
+  const campos = { nombre: "dNombre", telefono: "dTel", direccion: "dDir", referencia: "dRef" };
+  Object.entries(campos).forEach(([k, id]) => {
+    $(id).value = cliente[k] || "";
+    $(id).addEventListener("input", () => { cliente[k] = $(id).value; guardar("sb_cliente", cliente); $(id).classList.remove("mal"); $("carritoError").hidden = true; });
+  });
+  function pintarPago() {
+    document.querySelectorAll(".pago").forEach((b) => b.classList.toggle("activa", b.dataset.pago === pago));
+    $("dPagoConBox").hidden = pago !== "efectivo";
+    $("dTransf").hidden = pago !== "transferencia" || !datos.transferencia;
+    $("dTransf").textContent = datos.transferencia ? `Datos para transferir:\n${datos.transferencia}` : "";
+    $("dTransf").style.whiteSpace = "pre-line";
+  }
+  $("dPagos").addEventListener("click", (e) => { const b = e.target.closest(".pago"); if (b) { pago = b.dataset.pago; pintarPago(); } });
+
+  async function enviarDelivery() {
+    const err = $("carritoError"); err.hidden = true;
+    const falta = [["nombre", "Escribí tu nombre", (v) => v.trim().length >= 2], ["telefono", "Escribí tu WhatsApp con código de área", (v) => v.replace(/\D/g, "").length >= 8], ["direccion", "Escribí tu dirección de entrega", (v) => v.trim().length >= 5]]
+      .find(([k, , ok]) => !ok(cliente[k] || ""));
+    document.querySelectorAll(".datos input").forEach((i) => i.classList.remove("mal"));
+    if (falta) { $(campos[falta[0]]).classList.add("mal"); $(campos[falta[0]]).focus(); err.textContent = falta[1]; err.hidden = false; return; }
+    const btn = $("btnEnviar"); btn.disabled = true; btn.textContent = "Enviando…";
+    try {
+      const items = Object.entries(carrito).map(([id, l]) => ({ productoId: Number(id), cantidad: l.cant, nota: l.nota }));
+      const r = await post("/api/delivery", { cliente: { ...cliente, pago, pagoCon: pago === "efectivo" ? $("dPagoCon").value : "" }, items });
+      carrito = {}; guardar("sb_carrito", carrito);
+      Object.keys(datos.productos).forEach(pintarControl); pintarBarra();
+      $("dlgCarrito").close();
+      $("listoTxt").innerHTML = `Pedido <b>#${r.numero}</b> recibido. Te escribimos por WhatsApp al <b>${esc(cliente.telefono)}</b> para confirmarlo.`;
+      const t = $("listoTransf"); t.hidden = !r.transferencia; t.textContent = r.transferencia ? `Datos para transferir:\n${r.transferencia}` : "";
+      $("listoCuenta").hidden = true;
+      $("dlgListo").showModal();
+    } catch (e) { err.textContent = e.message; err.hidden = false; }
+    finally { pintarCarrito(); }
+  }
 
   // ---- Mi cuenta ----
   async function abrirCuenta() {
@@ -191,8 +242,19 @@
     window.scrollTo({ top: seccion.getBoundingClientRect().top + scrollY - topeFijo() - 8, behavior: "smooth" });
   });
 
+  // ---- Modo: en mesa / delivery ----
+  function aplicarModo() {
+    const delivery = modo === "delivery";
+    guardar("sb_modo", modo);
+    document.querySelectorAll(".modo").forEach((b) => b.classList.toggle("activa", b.dataset.modo === modo));
+    $("chipsMesa").hidden = delivery; $("chipDelivery").hidden = !delivery;
+    $("heroSub").textContent = delivery ? "Armá tu pedido, dejanos tus datos y te lo llevamos a tu casa. ♥" : "Elegí tu mesa, armá tu pedido y te lo llevamos. ♥";
+    if ($("dlgCarrito").open) pintarCarrito();
+  }
+  document.querySelectorAll(".modo").forEach((b) => (b.onclick = () => { modo = b.dataset.modo; aplicarModo(); if (modo === "mesa" && !mesa) abrirMesas(); }));
+
   // ---- Inicio ----
   Object.keys(datos.productos).forEach(pintarControl);
-  pintarBarra(); pintarMesa();
-  if (!mesa) setTimeout(() => abrirMesas(), 400);
+  pintarBarra(); pintarMesa(); pintarPago(); aplicarModo();
+  if (!mesa && modo === "mesa") setTimeout(() => abrirMesas(), 400);
 })();

@@ -64,6 +64,7 @@ const MENU = [
     const db = require("../src/model/database/models");
     const reset = process.argv.includes("--reset");
     await db.sequelize.sync({ force: reset });
+    await require("../src/model/database/actualizar")(db.sequelize);
     console.log(reset ? "🗑️  Tablas recreadas desde cero." : "✅ Tablas listas.");
 
     if (!(await db.Categoria.count())) {

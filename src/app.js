@@ -68,6 +68,7 @@ app.use((err, req, res, next) => {
 
 db.sequelize
   .authenticate()
+  .then(() => require("./model/database/actualizar")(db.sequelize))
   .then(() => {
     console.log(`✅ Conectado a la base de datos "${db.sequelize.config.database}"`);
     if (!process.env.ADMIN_PASSWORD && !process.env.ADMIN_PASSWORD_HASH) console.warn("⚠️  Definí ADMIN_PASSWORD en el .env para poder entrar a /admin.");

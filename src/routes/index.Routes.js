@@ -41,6 +41,15 @@ router.post("/api/pedidos", limiteEscritura, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Pedido de delivery: datos del cliente + productos
+router.post("/api/delivery", limiteEscritura, async (req, res, next) => {
+  try {
+    const p = await pedidos.crearDelivery(req.body.cliente, req.body.items);
+    const config = await ajustes.todos();
+    res.json({ ok: true, numero: p.id, total: p.total, pago: p.pago_preferido, transferencia: p.pago_preferido === "transferencia" ? config.transferencia_info : "" });
+  } catch (e) { next(e); }
+});
+
 router.post("/api/mesas/:mesa/aviso", limiteEscritura, async (req, res, next) => {
   try {
     const mesa = numeroMesa(req.params.mesa);

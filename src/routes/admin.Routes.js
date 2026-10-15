@@ -15,7 +15,7 @@ const fechas = require("../helpers/fechas");
 const { ErrorNegocio } = require("../helpers/errores");
 
 const router = express.Router();
-const limiteLogin = limitador({ max: 8, ventanaMs: 15 * 60_000, mensaje: "Demasiados intentos. Probá de nuevo en 15 minutos." });
+const limiteLogin = limitador({ max: 8, ventanaMs: 15 * 60_000, mensaje: "Demasiados intentos. Probá de nuevo en 15 minutos.", soloFallos: true, responder: (req, res, mensaje) => res.status(429).render("admin/login", { configurada: true, error: mensaje }) });
 
 const sha = (s) => crypto.createHash("sha256").update(String(s)).digest();
 async function claveCorrecta(intento) {
@@ -68,33 +68,35 @@ api.get("/eventos", (req, res) => {
 api.get("/ajustes", async (req, res) => res.json({ ok: true, ajustes: await ajustes.todos() }));
 api.put("/ajustes", async (req, res) => res.json({ ok: true, ajustes: await ajustes.guardar(req.body) }));
 
-// Mesas y cuentas
-api.get("/mesas", async (req, res) => res.json({ ok: true, mesas: await pedidos.mesas(), caja: Boolean(await caja.turnoAbierto()) }));
-api.get("/mesas/:mesa", async (req, res) => {
-  const mesa = Number(req.params.mesa);
-  await ajustes.validarMesa(mesa);
-  res.json({ ok: true, mesa, pedido: pedidos.aPlano(await pedidos.abiertoDeMesa(mesa)) });
+// Pedidos en pantalla (mesas abiertas + deliveries sin despachar)
+api.get("/pedidos/activos", async (req, res) => {
+  const [lista, config] = await Promise.all([pedidos.activos(), ajustes.todos()]);
+  res.json({ ok: true, pedidos: lista, mesas: config.cantidad_mesas });
 });
 api.post("/mesas/:mesa/items", async (req, res) => {
-  const mesa = Number(req.params.mesa);
-  const p = await pedidos.agregarItems(mesa, req.body.items, "admin");
+  const p = await pedidos.agregarItems(Number(req.params.mesa), req.body.items, "admin");
   res.json({ ok: true, pedido: await pedidos.detalle(p.id) });
 });
-api.patch("/items/:id", async (req, res) => {
-  await pedidos.cambiarCantidad(req.params.id, req.body.cantidad);
-  res.json({ ok: true });
+api.post("/pedidos/:id/items", async (req, res) => {
+  await pedidos.agregarAPedido(req.params.id, req.body.items);
+  res.json({ ok: true, pedido: await pedidos.detalle(req.params.id) });
 });
+api.patch("/items/:id", async (req, res) => { await pedidos.cambiarCantidad(req.params.id, req.body.cantidad); res.json({ ok: true }); });
 api.post("/pedidos/:id/visto", async (req, res) => { await pedidos.marcarVisto(req.params.id); res.json({ ok: true }); });
 api.post("/pedidos/:id/cerrar", async (req, res) => res.json({ ok: true, pedido: await pedidos.cerrar(req.params.id, req.body) }));
 api.post("/pedidos/:id/cancelar", async (req, res) => { await pedidos.cancelar(req.params.id); res.json({ ok: true }); });
 api.get("/pedidos/:id", async (req, res) => res.json({ ok: true, pedido: await pedidos.detalle(req.params.id) }));
 
-// Historial: ?dia=YYYY-MM-DD (por defecto, el día de hoy)
-api.get("/historial", async (req, res) => {
+// Ventas: lo cobrado/despachado de un día (?dia=YYYY-MM-DD, por defecto hoy) + totales de hoy, semana y mes
+api.get("/ventas", async (req, res) => {
   const dia = /^\d{4}-\d{2}-\d{2}$/.test(req.query.dia || "") ? req.query.dia : fechas.claveDia(new Date());
   const desde = fechas.desdeInicioDia(dia);
   const hasta = new Date(desde.getTime() + 24 * 3600e3 - 1);
-  res.json({ ok: true, dia, pedidos: await pedidos.historial(desde, hasta) });
+  const [lista, rep] = await Promise.all([pedidos.historial(desde, hasta), reportes.reporte("dia")]);
+  const porMetodo = {};
+  let total = 0;
+  lista.forEach((p) => { porMetodo[p.metodo_pago] = (porMetodo[p.metodo_pago] || 0) + p.total; total += p.total; });
+  res.json({ ok: true, dia, pedidos: lista, total, porMetodo, resumen: rep.resumen });
 });
 
 // Menú

@@ -4,17 +4,20 @@ Node.js + Express + MySQL (Sequelize) + EJS. Funciona en celular, tablet y PC.
 
 ## Cómo funciona
 
-**Cliente** (`/`): elige su mesa (o escanea el QR de la mesa: `/?mesa=5`), arma el pedido con los productos del menú y lo envía. Puede volver a pedir, ver su cuenta, y pedir la cuenta o llamar al mozo.
+**Cliente** (`/`): arriba elige **En mesa** o **Delivery**.
+- *En mesa*: elige su mesa (o escanea el QR `/?mesa=5`), arma el pedido y lo envía. Puede volver a pedir, ver su cuenta, pedir la cuenta o llamar al mozo.
+- *Delivery*: arma el pedido y deja nombre, WhatsApp, dirección, referencias y cómo paga (efectivo —con cuánto abona—, transferencia o débito). Si elige transferencia ve tus datos bancarios.
 
-**Administrador** (`/admin`, con contraseña): 
-- **Mesas**: en vivo (con sonido y aviso) aparece qué mesa pidió y cuánto es. Abrís la mesa, agregás/quitás productos si el cliente pide algo más, y cuando va a pagar tocás **Cobrar y cerrar mesa** → elegís método de pago (efectivo con vuelto, tarjeta, transferencia, Mercado Pago), descuento opcional, y se genera el **ticket imprimible**. Una mesa solo se cierra cuando vos la cobrás; mientras tanto el cliente puede seguir pidiendo.
-- **Menú**: categorías y productos (precio, costo opcional, foto, pausar si se acabó).
-- **Caja**: abrir con efectivo inicial, ingresos/egresos, ventas por método, cierre con arqueo (esperado vs. contado). No se puede cobrar con la caja cerrada.
-- **Ganancias**: por día, semana y mes (gráfico, ticket promedio, métodos de pago, lo más vendido). Si cargás el costo de cada producto, muestra la ganancia real.
-- **Historial**: cobros por día y reimpresión de tickets.
-- **Ajustes**: nombre del local, cantidad de mesas, pausar pedidos y **QR por mesa** imprimibles.
+**Administrador** (`/admin`, con contraseña) — pensado para que solo llegue el pedido y se atienda:
+- **Pedidos**: pantalla en vivo con **Mesas** de un lado (número de mesa bien grande) y **Delivery** del otro (con nombre, WhatsApp, dirección y forma de pago). **Suena** cuando entra un pedido y puede **imprimir solo** la comanda (solo lo nuevo de cada ronda). Cuando la mesa se va (*Cobrar y cerrar*) o el delivery sale (*Despachar*), el pedido **desaparece de la pantalla** y pasa a Ventas: nunca se mezcla con clientes que ya se fueron.
+- **Ventas**: lo cobrado/despachado, por día (hoy, semana y mes arriba), con el método de pago de cada una y el ticket para reimprimir.
+- **Menú**: categorías y productos (precio, foto, pausar si se acabó).
+- **Caja** (opcional): efectivo inicial, ingresos/egresos y arqueo al cerrar. No hace falta para cobrar.
+- **Ajustes**: nombre, cantidad de mesas, costo de envío, datos de transferencia, pausar pedidos/delivery y **QR por mesa**.
 
-> El "día" de negocio va de 5:00 a 5:00, así las ventas de la 1 am cuentan para el día anterior (`HORA_CORTE_DIA` en el `.env`).
+> El "día" de negocio va de 5:00 a 5:00 (las ventas de la 1 am cuentan para el día anterior): `HORA_CORTE_DIA` en el `.env`.
+
+**Sonido e impresión automática:** los navegadores exigen un toque en la página para activar el audio (el panel te lo avisa). La impresión automática abre el cuadro de impresión de Chrome en cada pedido; para que imprima **sin preguntar**, abrí Chrome con `--kiosk-printing` (y poné tu impresora térmica como predeterminada).
 
 ## Puesta en marcha
 
@@ -22,10 +25,11 @@ Node.js + Express + MySQL (Sequelize) + EJS. Funciona en celular, tablet y PC.
 npm install
 cp .env.example .env        # completá DB_*, ADMIN_PASSWORD y SESSION_SECRET
 # (la base de datos se crea sola si no existe)
-npm run db:instalar         # crea las tablas y carga un menú de ejemplo
+npm run db:instalar         # crea la base, las tablas y carga un menú de ejemplo
 npm start                   # http://localhost:3000   ·   panel: /admin
 ```
 
+- Si ya tenías la base de una versión anterior, **no hace falta reinstalar**: al arrancar el servidor agrega solo las columnas nuevas (delivery) sin borrar nada.
 - `npm run db:instalar -- --reset` borra todo y empieza de cero.
 - En producción usá `npm run prod` (sin nodemon), HTTPS, y `COOKIE_SECURE=true` (+ `TRUST_PROXY=true` si hay proxy).
 - Los precios del menú de ejemplo son inventados: cambialos desde **Admin → Menú**.

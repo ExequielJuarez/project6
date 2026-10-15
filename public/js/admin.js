@@ -1,21 +1,31 @@
-// Panel de administración: mesas en vivo, menú, caja, ganancias, historial y ajustes.
+// Panel de administración: pedidos en vivo (mesas + delivery), ventas, menú, caja y ajustes.
 (() => {
   const $ = (id) => document.getElementById(id);
   const pesos = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 2 });
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const METODOS = { efectivo: "Efectivo", tarjeta: "Tarjeta", transferencia: "Transferencia", mercadopago: "Mercado Pago" };
+  const METODOS = { efectivo: "Efectivo", transferencia: "Transferencia", tarjeta: "Débito / Tarjeta" };
+  const ICONO_PAGO = { efectivo: "💵", transferencia: "🏦", tarjeta: "💳", mercadopago: "📱" };
+  const nombrePago = (m) => ({ ...METODOS, mercadopago: "Mercado Pago" }[m] || "-");
   const hora = (f) => new Date(f).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
   const fechaHora = (f) => new Date(f).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-  const hace = (f) => { const m = Math.max(0, Math.round((Date.now() - new Date(f)) / 60000)); return m < 60 ? `hace ${m} min` : `hace ${Math.floor(m / 60)} h ${m % 60} min`; };
+  const hace = (f) => { const m = Math.max(0, Math.round((Date.now() - new Date(f)) / 60000)); return m < 1 ? "recién" : m < 60 ? `hace ${m} min` : `hace ${Math.floor(m / 60)} h ${m % 60} min`; };
   const leer = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  const num = (v) => (v === "" || v == null ? NaN : Number(String(v).replace(",", ".")));
+  // WhatsApp: si el número no trae código de país, se asume Argentina (54 9)
+  const waNumero = (t) => { let d = String(t || "").replace(/\D/g, "").replace(/^0+/, ""); if (!d.startsWith("54")) d = "549" + d.replace(/^15/, ""); return d; };
 
-  const estado = { ajustes: null, mesas: [], caja: false, vista: "mesas", mesaAbierta: null, nuevos: new Set(), stage: {}, menu: [], rep: { grupo: "dia", clave: null }, sonido: leer("sb_sonido", true) };
+  const estado = {
+    ajustes: null, vista: "pedidos", pedidos: [], filtro: "todos", menu: [],
+    editandoId: null, destinoAgregar: null, stage: {},
+    sonido: leer("sb_sonido", true), autoImprimir: leer("sb_auto_imprimir", false),
+    dia: null,
+  };
 
   // ---------- Utilidades ----------
   function toast(txt, error) {
     const t = $("toast"); t.textContent = txt; t.className = "toast" + (error ? " err" : ""); t.hidden = false;
-    clearTimeout(toast.id); toast.id = setTimeout(() => (t.hidden = true), error ? 4500 : 2200);
+    clearTimeout(toast.id); toast.id = setTimeout(() => (t.hidden = true), error ? 4500 : 2400);
   }
   async function api(metodo, url, body) {
     const opc = { method: metodo, headers: {} };
@@ -28,106 +38,204 @@
     if (!r.ok || j.ok === false) throw new Error(j.mensaje || "Algo salió mal");
     return j;
   }
-  // Ejecuta una acción mostrando el error como aviso en vez de romper la pantalla
   const seguro = (fn) => async (...a) => { try { return await fn(...a); } catch (e) { toast(e.message, true); } };
-  const num = (v) => (v === "" || v == null ? NaN : Number(String(v).replace(",", ".")));
 
+  // ---------- Sonido ----------
+  function contexto() { return beep.ctx || (beep.ctx = new (window.AudioContext || window.webkitAudioContext)()); }
   function beep() {
     if (!estado.sonido) return;
     try {
-      const ctx = beep.ctx || (beep.ctx = new (window.AudioContext || window.webkitAudioContext)());
-      [[880, 0], [1175, 0.16]].forEach(([f, d]) => {
+      const ctx = contexto(); ctx.resume?.();
+      [[880, 0], [1175, 0.2], [880, 0.4], [1175, 0.6]].forEach(([f, d]) => {
         const o = ctx.createOscillator(), g = ctx.createGain();
         o.frequency.value = f; o.type = "sine"; o.connect(g); g.connect(ctx.destination);
-        g.gain.setValueAtTime(0.0001, ctx.currentTime + d); g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + d + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + d + 0.3);
-        o.start(ctx.currentTime + d); o.stop(ctx.currentTime + d + 0.32);
+        g.gain.setValueAtTime(0.0001, ctx.currentTime + d); g.gain.exponentialRampToValueAtTime(0.5, ctx.currentTime + d + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + d + 0.28);
+        o.start(ctx.currentTime + d); o.stop(ctx.currentTime + d + 0.3);
       });
     } catch {}
   }
-  document.addEventListener("pointerdown", () => { try { beep.ctx?.resume(); } catch {} }, { once: true });
+  // Los navegadores bloquean el audio hasta que la persona toca algo: se avisa y se desbloquea con el primer toque
+  function revisarSonido() {
+    let bloqueado = false;
+    try { bloqueado = estado.sonido && contexto().state !== "running"; } catch {}
+    $("avisoSonido").hidden = !bloqueado;
+  }
+  const desbloquear = () => { try { contexto().resume().then(revisarSonido); } catch {} };
+  document.addEventListener("pointerdown", desbloquear);
+  document.addEventListener("keydown", desbloquear);
 
+  // ---------- Impresión ----------
+  let colaImpresion = Promise.resolve();
   function imprimir(html) {
-    $("zonaImpresion").innerHTML = html;
-    window.print();
+    colaImpresion = colaImpresion.then(() => new Promise((ok) => {
+      $("zonaImpresion").innerHTML = html;
+      setTimeout(() => { window.print(); ok(); }, 60);
+    }));
+    return colaImpresion;
+  }
+  const titulo = (p) => (p.tipo === "delivery" ? `DELIVERY #${p.id}` : `MESA ${p.mesa}`);
+  function itemsHtml(items) {
+    return items.map((i) => `<div class="it">${i.cantidad} x ${esc(i.nombre)}${i.nota ? `<small>» ${esc(i.nota)}</small>` : ""}</div>`).join("");
+  }
+  // Comanda: lo que hay que preparar (para la cocina). Si se pasan `items`, solo esos (ronda nueva)
+  function comandaHtml(p, items = p.items, esNuevo = true) {
+    const dl = p.tipo === "delivery";
+    return `<div class="ticket comanda">
+      <div class="c"><h3>${esNuevo ? "Nuevo pedido" : "Pedido"}</h3></div>
+      <div class="gran">${titulo(p)}</div>
+      <div class="c">${fechaHora(new Date())}</div><hr>
+      ${itemsHtml(items)}<hr>
+      ${dl ? `<div class="it">${esc(p.cliente_nombre)}</div><div>Tel: ${esc(p.cliente_telefono)}</div><div>${esc(p.direccion)}</div>${p.referencia ? `<div>(${esc(p.referencia)})</div>` : ""}<hr>
+        <div class="f"><span>Pago</span><span>${nombrePago(p.pago_preferido)}</span></div>
+        ${p.pago_preferido === "efectivo" && p.pago_con ? `<div class="f"><span>Abona con</span><span>${pesos(p.pago_con)}</span></div><div class="f"><span>Vuelto</span><span>${pesos(p.pago_con - p.total)}</span></div>` : ""}
+        ${p.envio > 0 ? `<div class="f"><span>Envío</span><span>${pesos(p.envio)}</span></div>` : ""}
+        <div class="f tot"><span>TOTAL</span><span>${pesos(p.total)}</span></div>` : ""}
+    </div>`;
+  }
+  // Ticket de venta (al cobrar / reimprimir)
+  function ticketHtml(p) {
+    const nombre = estado.ajustes?.nombre_local || "Street Burger";
+    const dl = p.tipo === "delivery";
+    return `<div class="ticket">
+      <div class="c"><h3>${esc(nombre)}</h3><div>Coffee &amp; Burgers</div></div><hr>
+      <div class="f"><span>Ticket N° ${String(p.numero_ticket || 0).padStart(4, "0")}</span><span>${dl ? `Delivery #${p.id}` : `Mesa ${p.mesa}`}</span></div>
+      <div>${fechaHora(p.cerrado_en || new Date())}</div>
+      ${dl ? `<div>${esc(p.cliente_nombre)} · ${esc(p.direccion)}</div>` : ""}<hr>
+      ${p.resumen.map((r) => `<div class="it"><div class="f"><span>${r.cantidad} x ${esc(r.nombre)}</span><span>${pesos(r.subtotal)}</span></div>${r.nota ? `<small>${esc(r.nota)}</small>` : ""}</div>`).join("")}<hr>
+      ${p.descuento > 0 || p.envio > 0 ? `<div class="f"><span>Subtotal</span><span>${pesos(p.subtotal)}</span></div>` : ""}
+      ${p.descuento > 0 ? `<div class="f"><span>Descuento</span><span>-${pesos(p.descuento)}</span></div>` : ""}
+      ${p.envio > 0 ? `<div class="f"><span>Envío</span><span>${pesos(p.envio)}</span></div>` : ""}
+      <div class="f tot"><span>TOTAL</span><span>${pesos(p.total)}</span></div>
+      <div class="f"><span>Pago</span><span>${nombrePago(p.metodo_pago)}</span></div>
+      ${p.recibido ? `<div class="f"><span>Recibido</span><span>${pesos(p.recibido)}</span></div><div class="f"><span>Vuelto</span><span>${pesos(p.recibido - p.total)}</span></div>` : ""}
+      <hr><div class="c">¡Gracias por tu compra!<br>Buena comida, mejores momentos<br><small>Documento no válido como factura</small></div></div>`;
+  }
+  function mostrarTicket(p, cerrado) {
+    estado.ticket = p;
+    $("dlgTicket").innerHTML = `<div class="dlg-cab"><h2>${cerrado ? "✓ Pasó a Ventas" : "Ticket"}</h2><button class="cerrar" data-a="cerrar-ticket" aria-label="Cerrar">✕</button></div>
+      ${ticketHtml(p)}<div class="acciones"><button class="btn btn-principal" data-a="imprimir-ticket" style="flex:1">🖨️ Imprimir ticket</button><button class="btn" data-a="cerrar-ticket">${cerrado ? "Listo" : "Cerrar"}</button></div>`;
+    if (!$("dlgTicket").open) $("dlgTicket").showModal();
   }
 
   // ---------- Navegación ----------
-  const vistas = { mesas: vistaMesas, menu: vistaMenu, caja: vistaCaja, ganancias: vistaGanancias, historial: vistaHistorial, ajustes: vistaAjustes };
+  const vistas = { pedidos: vistaPedidos, ventas: vistaVentas, menu: vistaMenu, caja: vistaCaja, ajustes: vistaAjustes };
   function ir(v) {
     estado.vista = v;
     document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("activa", b.dataset.vista === v));
     document.querySelectorAll(".vista").forEach((s) => (s.hidden = s.id !== `vista-${v}`));
+    window.scrollTo(0, 0);
     seguro(vistas[v])();
   }
 
-  // ---------- MESAS ----------
-  async function vistaMesas() { await cargarMesas(); }
+  // ---------- PEDIDOS EN PANTALLA ----------
+  async function vistaPedidos() { await cargarActivos(); }
 
-  async function cargarMesas() {
-    const j = await api("GET", "/admin/api/mesas");
-    estado.mesas = j.mesas; estado.caja = j.caja;
-    const sinVer = j.mesas.filter((m) => m.sinVer || m.aviso).length;
-    $("pastillaMesas").hidden = !sinVer; $("pastillaMesas").textContent = sinVer;
-    document.title = (sinVer ? `(${sinVer}) ` : "") + "Panel · Street Burger";
-    if (estado.vista === "mesas") pintarMesas();
+  async function cargarActivos() {
+    const j = await api("GET", "/admin/api/pedidos/activos");
+    estado.pedidos = j.pedidos; estado.mesasTotal = j.mesas;
+    const nuevos = j.pedidos.filter((p) => p.sinVer || p.aviso).length;
+    $("pastillaPedidos").hidden = !nuevos; $("pastillaPedidos").textContent = nuevos;
+    document.title = (nuevos ? `(${nuevos}) ` : "") + "Panel · Street Burger";
+    if (estado.vista === "pedidos") pintarPedidos();
+    if (estado.editandoId && $("dlgPedido").open) await pintarEditor();
   }
 
-  function pintarMesas() {
-    const ocupadas = estado.mesas.filter((m) => m.pedidoId);
-    const porCobrar = ocupadas.reduce((s, m) => s + m.total, 0);
-    $("vista-mesas").innerHTML = `
-      <div class="titulo-vista"><h2>Mesas</h2><span class="suave">${ocupadas.length} ocupada(s) · por cobrar ${pesos(porCobrar)}</span></div>
-      ${estado.caja ? "" : `<div class="banner"><span>💵 La caja está cerrada. Abrila para poder cobrar mesas.</span><button class="btn btn-acento btn-chico" data-a="ir" data-v="caja">Ir a Caja</button></div>`}
-      <div class="grilla-mesas">${estado.mesas.filter((m) => !m.fueraDeRango || m.pedidoId).map((m) => `
-        <button class="mesa ${m.pedidoId ? "ocupada" : ""} ${m.sinVer || m.aviso ? "nuevo" : ""}" data-a="mesa" data-n="${m.mesa}">
-          <div class="insignias">${m.sinVer ? `<span class="ins">NUEVO</span>` : ""}${m.aviso === "cuenta" ? `<span class="ins aviso">🧾 PIDE CUENTA</span>` : m.aviso === "mozo" ? `<span class="ins aviso">🙋 LLAMA</span>` : ""}</div>
-          <div class="num">${m.mesa}</div>
-          <div class="estado">${m.pedidoId ? "Ocupada" : "Libre"}</div>
-          ${m.pedidoId ? `<div class="monto">${pesos(m.total)}</div><div class="det">${m.productos} producto(s) · ${hace(m.desde)}</div>` : ""}
-        </button>`).join("")}</div>`;
-  }
-
-  async function abrirMesa(n) {
-    estado.mesaAbierta = n; estado.nuevos = new Set();
-    await pintarMesaAbierta();
-    if (!$("dlgMesa").open) $("dlgMesa").showModal();
-  }
-  async function pintarMesaAbierta() {
-    const n = estado.mesaAbierta;
-    const { pedido } = await api("GET", `/admin/api/mesas/${n}`);
-    estado.pedido = pedido;
-    let marcar = false;
-    if (pedido) {
-      pedido.items.filter((i) => !i.visto).forEach((i) => { estado.nuevos.add(i.id); marcar = true; });
-      if (pedido.aviso) marcar = true;
+  // Renglones iguales (mismo producto y aclaración) se muestran juntos; "nuevo" si alguno todavía no se vio
+  function listaItems(p) {
+    const g = new Map();
+    for (const i of p.items) {
+      const k = `${i.nombre}|${i.nota}`;
+      const x = g.get(k) || { nombre: i.nombre, nota: i.nota, cantidad: 0, nuevo: false };
+      x.cantidad += i.cantidad; x.nuevo = x.nuevo || !i.visto; g.set(k, x);
     }
-    const aviso = pedido?.aviso;
-    $("dlgMesa").innerHTML = `
-      <div class="dlg-cab"><h2>Mesa ${n}</h2><button class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>
-      ${aviso ? `<div class="banner">${aviso === "cuenta" ? "🧾 El cliente pidió la cuenta" : "🙋 El cliente llama al mozo"}</div>` : ""}
-      ${!pedido ? `<p class="vacio">Mesa libre. Agregá productos para abrir una cuenta.</p>` : `
-      <div class="lineas">${pedido.items.map((i) => `
-        <div class="linea ${estado.nuevos.has(i.id) ? "nuevo" : ""}">
-          <div class="nombre">${esc(i.nombre)}${estado.nuevos.has(i.id) ? '<span class="etq nuevo">NUEVO</span>' : ""}${i.origen === "admin" ? '<span class="etq">MOZO</span>' : ""}</div>
+    return `<ul class="items">${[...g.values()].map((i) => `<li class="${i.nuevo ? "nuevo-it" : ""}"><b>${i.cantidad}×</b> ${esc(i.nombre)}${i.nota ? `<em>» ${esc(i.nota)}</em>` : ""}</li>`).join("")}</ul>`;
+  }
+  const avisoTag = (p) => (p.aviso === "cuenta" ? '<span class="tag aviso">🧾 Pide la cuenta</span>' : p.aviso === "mozo" ? '<span class="tag aviso">🙋 Llama al mozo</span>' : "");
+
+  function tarjetaMesa(p) {
+    return `<article class="ped ${p.sinVer || p.aviso ? "nuevo" : ""}">
+      <div class="ped-num"><small>MESA</small><b>${p.mesa}</b></div>
+      <div class="ped-cuerpo">
+        <div class="ped-cab">${p.sinVer ? '<span class="tag alerta">Nuevo</span>' : ""}${avisoTag(p)}<span>${hace(p.creado_en)}</span></div>
+        ${listaItems(p)}
+        <div class="ped-pie"><div class="total">${pesos(p.total)}</div>
+          <div class="acciones">${p.sinVer || p.aviso ? `<button class="btn btn-chico" data-a="visto" data-id="${p.id}">✓ Visto</button>` : ""}
+            <button class="btn btn-chico" data-a="imprimir-pedido" data-id="${p.id}">🖨️ Imprimir</button>
+            <button class="btn btn-chico" data-a="editar" data-id="${p.id}">Editar</button>
+            <button class="btn btn-principal btn-chico" data-a="cobrar" data-id="${p.id}">Cobrar y cerrar</button></div></div>
+      </div></article>`;
+  }
+  function tarjetaDelivery(p) {
+    const vuelto = p.pago_preferido === "efectivo" && p.pago_con ? p.pago_con - p.total : null;
+    return `<article class="ped delivery ${p.sinVer ? "nuevo" : ""}">
+      <div class="ped-num"><small>DELIVERY</small><b class="chico">#${p.id}</b></div>
+      <div class="ped-cuerpo">
+        <div class="ped-cab">${p.sinVer ? '<span class="tag alerta">Nuevo</span>' : ""}<span class="tag pago">${ICONO_PAGO[p.pago_preferido] || ""} ${nombrePago(p.pago_preferido)}</span><span>${hace(p.creado_en)}</span></div>
+        <div class="datos-cli"><strong>${esc(p.cliente_nombre)}</strong>
+          <span>📱 <a href="https://wa.me/${waNumero(p.cliente_telefono)}" target="_blank" rel="noopener">${esc(p.cliente_telefono)}</a></span>
+          <span>📍 <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}" target="_blank" rel="noopener">${esc(p.direccion)}</a></span>
+          ${p.referencia ? `<span>🏠 ${esc(p.referencia)}</span>` : ""}</div>
+        ${listaItems(p)}
+        <div class="ped-pie"><div class="total">${pesos(p.total)}<small>${p.envio > 0 ? `incluye envío ${pesos(p.envio)}` : ""}${vuelto !== null ? `${p.envio > 0 ? " · " : ""}abona con ${pesos(p.pago_con)} → vuelto ${pesos(vuelto)}` : ""}</small></div>
+          <div class="acciones">${p.sinVer ? `<button class="btn btn-chico" data-a="visto" data-id="${p.id}">✓ Visto</button>` : ""}
+            <button class="btn btn-chico" data-a="imprimir-pedido" data-id="${p.id}">🖨️ Imprimir</button>
+            <a class="btn btn-chico" href="https://wa.me/${waNumero(p.cliente_telefono)}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a>
+            <button class="btn btn-chico" data-a="editar" data-id="${p.id}">Editar</button>
+            <button class="btn btn-principal btn-chico" data-a="cobrar" data-id="${p.id}">Despachar</button></div></div>
+      </div></article>`;
+  }
+
+  function pintarPedidos() {
+    const mesas = estado.pedidos.filter((p) => p.tipo === "mesa");
+    const deliverys = estado.pedidos.filter((p) => p.tipo === "delivery");
+    const f = estado.filtro;
+    const colMesas = `<div><div class="col-tit">Mesas <span>${mesas.length}</span></div>${mesas.map(tarjetaMesa).join("") || '<div class="vacio">No hay mesas con pedidos.<br>Cuando un cliente pida, aparece acá.</div>'}</div>`;
+    const colDel = `<div><div class="col-tit">Delivery <span>${deliverys.length}</span></div>${deliverys.map(tarjetaDelivery).join("") || '<div class="vacio">No hay deliveries pendientes.</div>'}</div>`;
+    $("vista-pedidos").innerHTML = `
+      <div class="titulo-vista"><div><p class="eyebrow">Panel de administración</p><h2>Pedidos en curso</h2>
+        <p>Se limpian solos: al cerrar la mesa o despachar el delivery pasan a <b>Ventas</b>.</p></div>
+        <div class="herramientas">
+          <button class="interruptor ${estado.sonido ? "on" : ""}" data-a="sonido"><i></i>Sonido</button>
+          <button class="interruptor ${estado.autoImprimir ? "on" : ""}" data-a="auto-imprimir" title="Imprime la comanda sola cuando llega un pedido"><i></i>Imprimir automático</button>
+          <button class="btn btn-principal" data-a="nueva-mesa">＋ Nueva mesa</button></div></div>
+      <div class="titulo-vista" style="margin-bottom:16px"><div class="seg">${[["todos", "Todos"], ["mesa", `Mesas (${mesas.length})`], ["delivery", `Delivery (${deliverys.length})`]].map(([k, t]) => `<button data-a="filtro" data-f="${k}" class="${f === k ? "sel" : ""}">${t}</button>`).join("")}</div></div>
+      <div class="cols ${f === "todos" ? "" : "una"}">${f !== "delivery" ? colMesas : ""}${f !== "mesa" ? colDel : ""}</div>`;
+  }
+
+  // ----- Editor de un pedido (cambiar cantidades, agregar, cancelar) -----
+  async function abrirEditor(id) {
+    estado.editandoId = Number(id);
+    await pintarEditor();
+    if (!$("dlgPedido").open) $("dlgPedido").showModal();
+    await api("POST", `/admin/api/pedidos/${id}/visto`).catch(() => {});
+  }
+  async function pintarEditor() {
+    const { pedido: p } = await api("GET", `/admin/api/pedidos/${estado.editandoId}`);
+    if (p.estado !== "abierto") { $("dlgPedido").close(); estado.editandoId = null; return; }
+    estado.pedido = p;
+    $("dlgPedido").innerHTML = `
+      <div class="dlg-cab"><h2>${p.tipo === "delivery" ? `Delivery #${p.id}` : `Mesa ${p.mesa}`}</h2><button class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>
+      ${p.tipo === "delivery" ? `<p class="suave" style="margin-bottom:10px">${esc(p.cliente_nombre)} · ${esc(p.cliente_telefono)} · ${esc(p.direccion)}</p>` : ""}
+      <div class="lineas">${p.items.map((i) => `
+        <div class="linea">
+          <div class="nombre">${esc(i.nombre)}${i.origen === "admin" ? '<span class="etq">AGREGADO</span>' : ""}</div>
           <div class="paso"><button data-a="cant" data-id="${i.id}" data-c="${i.cantidad - 1}" aria-label="Quitar uno">−</button><span>${i.cantidad}</span><button data-a="cant" data-id="${i.id}" data-c="${i.cantidad + 1}" aria-label="Agregar uno">+</button></div>
           <div class="importe">${pesos(i.precio * i.cantidad)}</div>
-          ${i.nota ? `<div class="nota">📝 ${esc(i.nota)}</div>` : ""}
+          ${i.nota ? `<div class="nota">» ${esc(i.nota)}</div>` : ""}
         </div>`).join("")}</div>
       <div class="totales">
-        ${pedido.descuento > 0 ? `<div class="t"><span>Subtotal</span><span>${pesos(pedido.subtotal)}</span></div><div class="t"><span>Descuento</span><span>− ${pesos(pedido.descuento)}</span></div>` : ""}
-        <div class="t grande"><span>Total</span><span>${pesos(pedido.total)}</span></div>
-      </div>`}
+        ${p.envio > 0 ? `<div class="t"><span>Envío</span><span>${pesos(p.envio)}</span></div>` : ""}
+        <div class="t grande"><span>Total</span><span>${pesos(p.total)}</span></div></div>
       <div class="acciones">
         <button class="btn" data-a="agregar">＋ Agregar producto</button>
-        ${pedido ? `<button class="btn btn-principal" data-a="cobrar">Cobrar y cerrar mesa</button><button class="btn btn-peligro btn-chico" data-a="cancelar-pedido">Cancelar pedido</button>` : ""}
-      </div>`;
-    if (marcar) { await api("POST", `/admin/api/pedidos/${pedido.id}/visto`); cargarMesas().catch(() => {}); }
+        <button class="btn btn-principal" data-a="cobrar" data-id="${p.id}">${p.tipo === "delivery" ? "Despachar" : "Cobrar y cerrar"}</button>
+        <button class="btn btn-peligro btn-chico" data-a="cancelar-pedido">Cancelar pedido</button></div>`;
   }
 
-  // ----- Agregar productos a una cuenta -----
-  async function abrirAgregar() {
+  // ----- Agregar productos (a un pedido existente o a una mesa nueva) -----
+  async function abrirAgregar(destino) {
     if (!estado.menu.length) estado.menu = (await api("GET", "/admin/api/menu")).categorias;
-    estado.stage = {}; estado.filtroCat = null; estado.busqueda = "";
+    estado.destinoAgregar = destino; estado.stage = {}; estado.filtroCat = null; estado.busqueda = "";
     pintarAgregar(); $("dlgAgregar").showModal();
   }
   function pintarAgregar() {
@@ -136,41 +244,44 @@
     const prods = cats.filter((c) => !estado.filtroCat || c.id === estado.filtroCat).flatMap((c) => c.productos.filter((p) => p.activo && (!q || p.nombre.toLowerCase().includes(q))));
     const stage = Object.entries(estado.stage);
     const todos = estado.menu.flatMap((c) => c.productos);
-    const nombre = (id) => todos.find((p) => p.id == id)?.nombre;
     const total = stage.reduce((s, [id, c]) => s + todos.find((p) => p.id == id).precio * c, 0);
     const buscando = document.activeElement?.id === "bProd";
+    const d = estado.destinoAgregar;
     $("dlgAgregar").innerHTML = `
-      <div class="dlg-cab"><h2>Agregar a Mesa ${estado.mesaAbierta}</h2><button class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>
+      <div class="dlg-cab"><h2>Agregar a ${d.mesa ? `Mesa ${d.mesa}` : "la cuenta"}</h2><button class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>
       <div class="buscar"><input id="bProd" type="search" placeholder="Buscar producto…" value="${esc(estado.busqueda || "")}">
-        <div class="chips"><button class="chip ${!estado.filtroCat ? "sel" : ""}" data-a="filtro" data-id="">Todos</button>${cats.map((c) => `<button class="chip ${estado.filtroCat === c.id ? "sel" : ""}" data-a="filtro" data-id="${c.id}">${c.icono} ${esc(c.nombre)}</button>`).join("")}</div></div>
-      <div class="opciones">${prods.map((p) => `<button class="opcion" data-a="stage" data-id="${p.id}"><b>${esc(p.nombre)}</b><span>${pesos(p.precio)}</span>${estado.stage[p.id] ? `<i class="cuenta" style="font-style:normal">${estado.stage[p.id]}</i>` : ""}</button>`).join("") || '<p class="vacio">Sin resultados</p>'}</div>
+        <div class="chips"><button class="chip ${!estado.filtroCat ? "sel" : ""}" data-a="filtro-cat" data-id="">Todos</button>${cats.map((c) => `<button class="chip ${estado.filtroCat === c.id ? "sel" : ""}" data-a="filtro-cat" data-id="${c.id}">${c.icono} ${esc(c.nombre)}</button>`).join("")}</div></div>
+      <div class="opciones">${prods.map((p) => `<button class="opcion" data-a="stage" data-id="${p.id}"><b>${esc(p.nombre)}</b><span>${pesos(p.precio)}</span>${estado.stage[p.id] ? `<i class="cuenta">${estado.stage[p.id]}</i>` : ""}</button>`).join("") || '<p class="vacio">Sin resultados</p>'}</div>
       ${stage.length ? `<div style="margin-top:14px;border-top:2px solid var(--tinta);padding-top:10px">
-        ${stage.map(([id, c]) => `<div class="linea" style="grid-template-columns:1fr auto"><div class="nombre">${esc(nombre(id))}</div><div class="paso"><button data-a="stage-menos" data-id="${id}">−</button><span>${c}</span><button data-a="stage" data-id="${id}">+</button></div></div>`).join("")}
-        <button class="btn btn-principal" style="width:100%;margin-top:10px" data-a="confirmar-agregar">Agregar a la cuenta · ${pesos(total)}</button></div>` : ""}`;
+        ${stage.map(([id, c]) => `<div class="linea" style="grid-template-columns:1fr auto"><div class="nombre">${esc(todos.find((p) => p.id == id).nombre)}</div><div class="paso"><button data-a="stage-menos" data-id="${id}">−</button><span>${c}</span><button data-a="stage" data-id="${id}">+</button></div></div>`).join("")}
+        <button class="btn btn-principal" style="width:100%;margin-top:10px;padding:13px" data-a="confirmar-agregar">Agregar · ${pesos(total)}</button></div>` : ""}`;
     if (buscando) { const i = $("bProd"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
   }
 
-  // ----- Cobrar -----
-  function abrirCobro() {
-    const p = estado.pedido;
-    estado.cobro = { metodo: "efectivo", descuento: p.descuento || 0, recibido: "" };
+  // ----- Cobrar mesa / despachar delivery -----
+  function abrirCobro(id) {
+    const p = estado.pedidos.find((x) => x.id === Number(id)) || estado.pedido;
+    const dl = p.tipo === "delivery";
+    estado.cobro = { id: p.id, p, metodo: p.pago_preferido && METODOS[p.pago_preferido] ? p.pago_preferido : "efectivo", descuento: 0, recibido: "" };
     $("dlgCobro").innerHTML = `
-      <div class="dlg-cab"><h2>Cobrar · Mesa ${p.mesa}</h2><button class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>
-      <div class="totales"><div class="t"><span>Subtotal</span><b>${pesos(p.subtotal)}</b></div></div>
-      <label class="campo"><span>Descuento ($)</span><input id="cDesc" type="number" inputmode="decimal" min="0" step="any" value="${estado.cobro.descuento || ""}" placeholder="0">
-        <div class="rapidos">${[5, 10, 15, 20].map((x) => `<button type="button" class="chip" data-a="pct" data-p="${x}">${x}%</button>`).join("")}<button type="button" class="chip" data-a="pct" data-p="0">Sin descuento</button></div></label>
-      <div class="totales"><div class="t grande"><span>Total a cobrar</span><span id="cTotal"></span></div></div>
-      <div class="metodos">${Object.entries(METODOS).map(([k, v]) => `<button type="button" class="metodo ${k === "efectivo" ? "sel" : ""}" data-a="metodo" data-m="${k}">${{ efectivo: "💵", tarjeta: "💳", transferencia: "🏦", mercadopago: "📱" }[k]} ${v}</button>`).join("")}</div>
-      <div id="cEfectivo"><label class="campo"><span>Efectivo recibido <small>(opcional, para calcular el vuelto)</small></span><input id="cRec" type="number" inputmode="decimal" min="0" step="any" placeholder="0">
+      <div class="dlg-cab"><h2>${dl ? `Despachar #${p.id}` : `Cobrar · Mesa ${p.mesa}`}</h2><button class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>
+      ${dl ? `<p class="suave" style="margin-bottom:10px">${esc(p.cliente_nombre)} · ${esc(p.direccion)}</p>` : ""}
+      ${!dl ? `<div class="totales"><div class="t"><span>Subtotal</span><b>${pesos(p.subtotal)}</b></div></div>
+      <label class="campo"><span>Descuento ($)</span><input id="cDesc" type="number" inputmode="decimal" min="0" step="any" placeholder="0">
+        <div class="rapidos">${[5, 10, 15, 20].map((x) => `<button type="button" class="chip" data-a="pct" data-p="${x}">${x}%</button>`).join("")}<button type="button" class="chip" data-a="pct" data-p="0">Sin descuento</button></div></label>` : ""}
+      <div class="totales"><div class="t grande"><span>Total</span><span id="cTotal"></span></div></div>
+      <div class="metodos">${Object.entries(METODOS).map(([k, v]) => `<button type="button" class="metodo" data-a="metodo" data-m="${k}">${ICONO_PAGO[k]} ${v}</button>`).join("")}</div>
+      <div id="cEfectivo"><label class="campo"><span>Efectivo recibido <small>(opcional, para calcular el vuelto)</small></span><input id="cRec" type="number" inputmode="decimal" min="0" step="any" placeholder="0" value="${dl && p.pago_con ? p.pago_con : ""}">
         <div class="rapidos" id="cRapidos"></div></label><div id="cVuelto"></div></div>
-      <div class="acciones"><button class="btn btn-principal" data-a="confirmar-cobro" id="btnCobrar" style="flex:1">Confirmar cobro y cerrar mesa</button></div>`;
+      <div class="acciones"><button class="btn btn-principal" data-a="confirmar-cobro" id="btnCobrar" style="flex:1;padding:13px">${dl ? "Despachar y pasar a Ventas" : "Cobrar, cerrar mesa y pasar a Ventas"}</button></div>`;
     actualizarCobro(); $("dlgCobro").showModal();
   }
   function actualizarCobro() {
-    const p = estado.pedido, c = estado.cobro;
-    c.descuento = Math.min(Math.max(num($("cDesc").value) || 0, 0), p.subtotal);
+    const c = estado.cobro, p = c.p;
+    c.descuento = p.tipo === "mesa" ? Math.min(Math.max(num($("cDesc")?.value) || 0, 0), p.subtotal) : 0;
     c.recibido = $("cRec") ? $("cRec").value : "";
-    const total = Math.round((p.subtotal - c.descuento) * 100) / 100;
+    const total = Math.round((p.subtotal - c.descuento + (p.envio || 0)) * 100) / 100;
+    c.total = total;
     $("cTotal").textContent = pesos(total);
     $("cEfectivo").hidden = c.metodo !== "efectivo";
     document.querySelectorAll(".metodo").forEach((b) => b.classList.toggle("sel", b.dataset.m === c.metodo));
@@ -178,34 +289,28 @@
     $("cRapidos").innerHTML = redondeos.map((x) => `<button type="button" class="chip" data-a="recibido" data-v="${x}">${x === total ? "Justo" : pesos(x)}</button>`).join("");
     const rec = num(c.recibido);
     $("cVuelto").innerHTML = Number.isFinite(rec) ? (rec >= total ? `<div class="vuelto"><span>Vuelto</span><span>${pesos(rec - total)}</span></div>` : `<div class="vuelto mal"><span>Falta</span><span>${pesos(total - rec)}</span></div>`) : "";
-    c.total = total;
   }
 
-  function ticketHtml(p) {
-    const nombre = estado.ajustes?.nombre_local || "Street Burger";
-    const ahora = p.cerrado_en || new Date();
-    return `<div class="ticket">
-      <div class="c"><h3>${esc(nombre)}</h3><div>Coffee &amp; Burgers</div></div><hr>
-      <div class="f"><span>Ticket N° ${String(p.numero_ticket || 0).padStart(4, "0")}</span><span>Mesa ${p.mesa}</span></div>
-      <div>${fechaHora(ahora)}</div><hr>
-      ${p.resumen.map((r) => `<div class="it"><div class="f"><span>${r.cantidad} x ${esc(r.nombre)}</span><span>${pesos(r.subtotal)}</span></div>${r.nota ? `<small>${esc(r.nota)}</small>` : ""}</div>`).join("")}<hr>
-      ${p.descuento > 0 ? `<div class="f"><span>Subtotal</span><span>${pesos(p.subtotal)}</span></div><div class="f"><span>Descuento</span><span>-${pesos(p.descuento)}</span></div>` : ""}
-      <div class="f tot"><span>TOTAL</span><span>${pesos(p.total)}</span></div>
-      <div class="f"><span>Pago</span><span>${METODOS[p.metodo_pago] || "-"}</span></div>
-      ${p.recibido ? `<div class="f"><span>Recibido</span><span>${pesos(p.recibido)}</span></div><div class="f"><span>Vuelto</span><span>${pesos(p.recibido - p.total)}</span></div>` : ""}
-      <hr><div class="c">¡Gracias por tu visita!<br>Buena comida, mejores momentos<br><small>Documento no válido como factura</small></div></div>`;
-  }
-  function mostrarTicket(p, cierraTodo) {
-    estado.ticket = p; estado.cierraTodo = cierraTodo;
-    $("dlgTicket").innerHTML = `<div class="dlg-cab"><h2>${cierraTodo ? "✓ Mesa cerrada" : "Ticket"}</h2><button class="cerrar" data-a="cerrar-ticket" aria-label="Cerrar">✕</button></div>
-      ${ticketHtml(p)}<div class="acciones"><button class="btn btn-principal" data-a="imprimir" style="flex:1">🖨️ Imprimir ticket</button><button class="btn" data-a="cerrar-ticket">${cierraTodo ? "Listo" : "Cerrar"}</button></div>`;
-    if (!$("dlgTicket").open) $("dlgTicket").showModal();
+  // ---------- VENTAS ----------
+  async function vistaVentas(dia) {
+    const j = await api("GET", `/admin/api/ventas${dia || estado.dia ? `?dia=${dia || estado.dia}` : ""}`);
+    estado.dia = j.dia;
+    const r = j.resumen;
+    $("vista-ventas").innerHTML = `<div class="titulo-vista"><div><p class="eyebrow">Panel de administración</p><h2>Ventas</h2><p>Todo lo que ya se cobró o despachó. Elegí un día para consultarlo.</p></div></div>
+      <div class="kpis">
+        <div class="kpi oscuro"><small>Hoy</small><strong>${pesos(r.hoy.ventas)}</strong><em>${r.hoy.pedidos} venta(s)</em></div>
+        <div class="kpi"><small>Esta semana</small><strong>${pesos(r.semana.ventas)}</strong><em>${r.semana.pedidos} venta(s)</em></div>
+        <div class="kpi"><small>Este mes</small><strong>${pesos(r.mes.ventas)}</strong><em>${r.mes.pedidos} venta(s)</em></div></div>
+      <div class="tarjeta"><div class="titulo-vista" style="margin-bottom:12px"><h3 style="margin:0">Detalle del día</h3><input id="diaV" type="date" value="${j.dia}" style="width:auto"></div>
+        <div class="acciones" style="margin-bottom:12px"><span class="tag pago">Total ${pesos(j.total)}</span>${Object.entries(j.porMetodo).map(([m, v]) => `<span class="tag">${ICONO_PAGO[m] || ""} ${nombrePago(m)} ${pesos(v)}</span>`).join("")}</div>
+        ${j.pedidos.length ? `<table class="tabla"><thead><tr><th>Hora</th><th>Pedido</th><th>Pago</th><th class="der">Total</th></tr></thead><tbody>${j.pedidos.map((p) => `<tr class="click" data-a="ver-ticket" data-id="${p.id}"><td>${hora(p.cerrado_en)}</td><td>${p.tipo === "delivery" ? `🛵 #${p.id} · ${esc(p.cliente_nombre)}` : `🍽️ Mesa ${p.mesa}`}</td><td>${nombrePago(p.metodo_pago)}</td><td class="der"><b>${pesos(p.total)}</b></td></tr>`).join("")}</tbody></table><p class="suave" style="margin-top:10px">Tocá una venta para ver o reimprimir el ticket. (El día de negocio va de 5:00 a 5:00.)</p>` : '<p class="vacio">No hay ventas en este día.</p>'}</div>`;
+    $("diaV").onchange = (e) => e.target.value && seguro(vistaVentas)(e.target.value);
   }
 
   // ---------- MENÚ ----------
   async function vistaMenu() {
     estado.menu = (await api("GET", "/admin/api/menu")).categorias;
-    $("vista-menu").innerHTML = `<div class="titulo-vista"><h2>Menú</h2><div class="acciones"><button class="btn btn-acento" data-a="nueva-cat" style="border-color:var(--acento)">＋ Categoría</button></div></div>
+    $("vista-menu").innerHTML = `<div class="titulo-vista"><div><p class="eyebrow">Panel de administración</p><h2>Menú</h2><p>Lo que ven tus clientes. Pausá un producto si se acabó.</p></div><button class="btn btn-principal" data-a="nueva-cat">＋ Categoría</button></div>
       ${estado.menu.map((c) => `<div class="tarjeta cat-admin">
         <div class="cat-cab"><h3>${c.icono} ${esc(c.nombre)} ${c.activo ? "" : '<span class="etq">OCULTA</span>'}</h3>
           <button class="btn btn-chico" data-a="nuevo-prod" data-id="${c.id}">＋ Producto</button><button class="btn btn-chico" data-a="editar-cat" data-id="${c.id}">Editar</button></div>
@@ -216,9 +321,8 @@
           <div class="acciones"><button class="btn btn-chico" data-a="editar-prod" data-id="${p.id}">Editar</button></div></div>`).join("") || '<p class="suave">Sin productos todavía.</p>'}
       </div>`).join("") || '<p class="vacio">Todavía no cargaste categorías. Empezá creando una (ej: Hamburguesas).</p>'}`;
   }
-
-  function abrirForm(titulo, cuerpo, alEnviar) {
-    $("dlgForm").innerHTML = `<form id="formDlg"><div class="dlg-cab"><h2>${titulo}</h2><button type="button" class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>${cuerpo}</form>`;
+  function abrirForm(tit, cuerpo, alEnviar) {
+    $("dlgForm").innerHTML = `<form id="formDlg"><div class="dlg-cab"><h2>${tit}</h2><button type="button" class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>${cuerpo}</form>`;
     $("formDlg").onsubmit = seguro(async (e) => { e.preventDefault(); await alEnviar(new FormData(e.target)); });
     if (!$("dlgForm").open) $("dlgForm").showModal();
   }
@@ -227,11 +331,10 @@
       <label class="campo"><span>Nombre</span><input name="nombre" required maxlength="80" value="${esc(c?.nombre)}"></label>
       <div class="fila-campos"><label class="campo"><span>Ícono (emoji)</span><input name="icono" maxlength="8" value="${esc(c?.icono || "🍽️")}"></label>
       <label class="campo"><span>Orden</span><input name="orden" type="number" value="${c?.orden ?? estado.menu.length}"></label></div>
-      <label class="campo"><input type="checkbox" name="activo" style="width:auto" ${c?.activo !== false ? "checked" : ""}> Visible en el menú</label>
-      <div class="acciones"><button class="btn btn-principal" style="flex:1">Guardar</button>${c ? '<button type="button" class="btn btn-peligro" data-a="borrar-cat" data-id="' + c.id + '">Eliminar</button>' : ""}</div>`,
+      <label class="campo"><input type="checkbox" name="activo" ${c?.activo !== false ? "checked" : ""}> Visible en el menú</label>
+      <div class="acciones"><button class="btn btn-principal" style="flex:1">Guardar</button>${c ? `<button type="button" class="btn btn-peligro" data-a="borrar-cat" data-id="${c.id}">Eliminar</button>` : ""}</div>`,
       async (fd) => {
-        const body = { nombre: fd.get("nombre"), icono: fd.get("icono"), orden: fd.get("orden"), activo: fd.has("activo") };
-        await api(c ? "PUT" : "POST", c ? `/admin/api/categorias/${c.id}` : "/admin/api/categorias", body);
+        await api(c ? "PUT" : "POST", c ? `/admin/api/categorias/${c.id}` : "/admin/api/categorias", { nombre: fd.get("nombre"), icono: fd.get("icono"), orden: fd.get("orden"), activo: fd.has("activo") });
         $("dlgForm").close(); toast("Categoría guardada"); vistaMenu();
       });
   }
@@ -239,18 +342,16 @@
     abrirForm(p ? "Editar producto" : "Nuevo producto", `
       <label class="campo"><span>Nombre</span><input name="nombre" required maxlength="120" value="${esc(p?.nombre)}"></label>
       <label class="campo"><span>Descripción <small>(opcional)</small></span><textarea name="descripcion" rows="2" maxlength="300">${esc(p?.descripcion)}</textarea></label>
-      <div class="fila-campos"><label class="campo"><span>Precio de venta ($)</span><input name="precio" type="number" inputmode="decimal" min="0" step="any" required value="${p?.precio ?? ""}"></label>
-      <label class="campo"><span>Costo ($) <small>para calcular ganancia</small></span><input name="costo" type="number" inputmode="decimal" min="0" step="any" value="${p?.costo ?? ""}"></label></div>
-      <label class="campo"><span>Categoría</span><select name="categoria_id">${estado.menu.map((c) => `<option value="${c.id}" ${(p?.categoria_id ?? categoriaId) == c.id ? "selected" : ""}>${c.icono} ${esc(c.nombre)}</option>`).join("")}</select></label>
+      <div class="fila-campos"><label class="campo"><span>Precio ($)</span><input name="precio" type="number" inputmode="decimal" min="0" step="any" required value="${p?.precio ?? ""}"></label>
+      <label class="campo"><span>Categoría</span><select name="categoria_id">${estado.menu.map((c) => `<option value="${c.id}" ${(p?.categoria_id ?? categoriaId) == c.id ? "selected" : ""}>${c.icono} ${esc(c.nombre)}</option>`).join("")}</select></label></div>
       <div class="campo"><span>Foto <small>(opcional)</small></span>
         <img id="prev" class="vista-previa" alt="" ${p?.imagen ? `src="${esc(p.imagen)}"` : "hidden"}>
         <input type="hidden" name="imagen" id="imgUrl" value="${esc(p?.imagen)}"><input type="file" id="imgArchivo" accept="image/jpeg,image/png,image/webp">
         <button type="button" class="btn btn-chico" data-a="quitar-foto" style="margin-top:6px">Quitar foto</button></div>
-      <label class="campo"><input type="checkbox" name="activo" style="width:auto" ${p?.activo !== false ? "checked" : ""}> Disponible (destildalo si se acabó)</label>
-      <div class="acciones"><button class="btn btn-principal" style="flex:1">Guardar</button>${p ? '<button type="button" class="btn btn-peligro" data-a="borrar-prod" data-id="' + p.id + '">Eliminar</button>' : ""}</div>`,
+      <label class="campo"><input type="checkbox" name="activo" ${p?.activo !== false ? "checked" : ""}> Disponible (destildalo si se acabó)</label>
+      <div class="acciones"><button class="btn btn-principal" style="flex:1">Guardar</button>${p ? `<button type="button" class="btn btn-peligro" data-a="borrar-prod" data-id="${p.id}">Eliminar</button>` : ""}</div>`,
       async (fd) => {
-        const body = { nombre: fd.get("nombre"), descripcion: fd.get("descripcion"), precio: fd.get("precio"), costo: fd.get("costo") || 0, categoria_id: fd.get("categoria_id"), imagen: fd.get("imagen"), activo: fd.has("activo") };
-        await api(p ? "PUT" : "POST", p ? `/admin/api/productos/${p.id}` : "/admin/api/productos", body);
+        await api(p ? "PUT" : "POST", p ? `/admin/api/productos/${p.id}` : "/admin/api/productos", { nombre: fd.get("nombre"), descripcion: fd.get("descripcion"), precio: fd.get("precio"), categoria_id: fd.get("categoria_id"), imagen: fd.get("imagen"), activo: fd.has("activo") });
         $("dlgForm").close(); toast("Producto guardado"); vistaMenu();
       });
     $("imgArchivo").onchange = seguro(async (e) => {
@@ -261,7 +362,6 @@
       $("imgUrl").value = url; $("prev").src = url; $("prev").hidden = false;
     });
   }
-  // Achica la foto antes de subirla (los celulares sacan fotos enormes)
   function reducirImagen(archivo, max = 900) {
     return new Promise((ok, mal) => {
       const img = new Image();
@@ -277,31 +377,29 @@
     });
   }
 
-  // ---------- CAJA ----------
+  // ---------- CAJA (opcional) ----------
   async function vistaCaja() {
     const { actual, historial } = await api("GET", "/admin/api/caja");
-    estado.caja = Boolean(actual);
-    let html = `<div class="titulo-vista"><h2>Caja</h2></div>`;
+    let html = `<div class="titulo-vista"><div><p class="eyebrow">Panel de administración</p><h2>Caja</h2><p>Opcional: sirve para controlar el efectivo del día. No hace falta para cobrar.</p></div></div>`;
     if (!actual) {
-      html += `<div class="tarjeta"><h3>La caja está cerrada</h3><p class="suave">Abrí la caja indicando con cuánto efectivo empezás (el cambio). Mientras esté cerrada no se pueden cobrar mesas.</p>
+      html += `<div class="tarjeta"><h3>La caja está cerrada</h3><p class="suave" style="margin-bottom:12px">Abrila indicando con cuánto efectivo empezás (el cambio).</p>
         <form id="formAbrir"><label class="campo"><span>Efectivo inicial ($)</span><input name="monto" type="number" inputmode="decimal" min="0" step="any" required value="0"></label><button class="btn btn-principal">Abrir caja</button></form></div>`;
     } else {
       const t = actual.turno;
-      html += `<p class="suave">Abierta desde ${fechaHora(t.creado_en)}</p>
+      html += `<p class="suave" style="margin-bottom:12px">Abierta desde ${fechaHora(t.creado_en)}</p>
         <div class="kpis">
           <div class="kpi oscuro"><small>Efectivo que debería haber</small><strong>${pesos(actual.esperado)}</strong><em>inicial + ventas en efectivo + ingresos − egresos</em></div>
-          <div class="kpi"><small>Ventas del turno</small><strong>${pesos(actual.totalVentas)}</strong><em>${actual.pedidos} mesa(s) cobrada(s)</em></div>
+          <div class="kpi"><small>Ventas del turno</small><strong>${pesos(actual.totalVentas)}</strong><em>${actual.pedidos} venta(s)</em></div>
           <div class="kpi"><small>Efectivo inicial</small><strong>${pesos(t.monto_inicial)}</strong></div>
-          <div class="kpi"><small>Ingresos / Egresos</small><strong>${pesos(actual.ingresos)} / ${pesos(actual.egresos)}</strong></div>
-        </div>
-        <div class="dos-col"><div class="tarjeta"><h3>Ventas por método</h3>${Object.entries(METODOS).map(([k, v]) => `<div class="metodo-fila"><span>${v}</span><b>${pesos(actual.ventas[k])}</b></div>`).join("")}</div>
+          <div class="kpi"><small>Ingresos / Egresos</small><strong>${pesos(actual.ingresos)} / ${pesos(actual.egresos)}</strong></div></div>
+        <div class="dos-col"><div class="tarjeta"><h3>Ventas por método</h3>${["efectivo", "transferencia", "tarjeta", "mercadopago"].filter((k) => k !== "mercadopago" || actual.ventas[k]).map((k) => `<div class="metodo-fila"><span>${nombrePago(k)}</span><b>${pesos(actual.ventas[k])}</b></div>`).join("")}</div>
         <div class="tarjeta"><h3>Registrar movimiento</h3><form id="formMov">
           <div class="fila-campos"><label class="campo"><span>Tipo</span><select name="tipo"><option value="egreso">Egreso (sale plata)</option><option value="ingreso">Ingreso (entra plata)</option></select></label>
           <label class="campo"><span>Monto ($)</span><input name="monto" type="number" inputmode="decimal" min="0.01" step="any" required></label></div>
           <label class="campo"><span>Concepto</span><input name="concepto" required maxlength="150" placeholder="Ej: compra de pan, retiro, cambio…"></label>
           <button class="btn btn-principal">Registrar</button></form></div></div>
         <div class="tarjeta"><h3>Movimientos del turno</h3>${actual.movimientos.length ? `<table class="tabla"><tbody>${actual.movimientos.map((m) => `<tr><td>${hora(m.creado_en)}</td><td>${esc(m.concepto)}</td><td class="der ${m.tipo === "ingreso" ? "pos" : "neg"}">${m.tipo === "ingreso" ? "+" : "−"} ${pesos(m.monto)}</td></tr>`).join("")}</tbody></table>` : '<p class="suave">Sin movimientos.</p>'}</div>
-        <div class="tarjeta"><h3>Cerrar caja</h3><p class="suave">Contá el efectivo que hay en el cajón. Se comparará con lo que debería haber.</p>
+        <div class="tarjeta"><h3>Cerrar caja</h3><p class="suave" style="margin-bottom:10px">Contá el efectivo del cajón. Se compara con lo que debería haber.</p>
           <form id="formCerrar"><div class="fila-campos"><label class="campo"><span>Efectivo contado ($)</span><input name="contado" type="number" inputmode="decimal" min="0" step="any" required></label>
           <label class="campo"><span>Nota <small>(opcional)</small></span><input name="nota" maxlength="250"></label></div><button class="btn btn-peligro">Cerrar caja del día</button></form></div>`;
     }
@@ -311,63 +409,35 @@
     f("formAbrir", async (b) => { await api("POST", "/admin/api/caja/abrir", b); toast("Caja abierta"); vistaCaja(); });
     f("formMov", async (b) => { await api("POST", "/admin/api/caja/movimientos", b); toast("Movimiento registrado"); vistaCaja(); });
     f("formCerrar", async (b) => {
-      if (!confirm("¿Cerrar la caja? Ya no se podrá cobrar hasta abrir una nueva.")) return;
+      if (!confirm("¿Cerrar la caja?")) return;
       const { cierre } = await api("POST", "/admin/api/caja/cerrar", b);
       alert(`Caja cerrada.\n\nEsperado: ${pesos(cierre.esperado)}\nContado: ${pesos(cierre.turno.monto_contado)}\nDiferencia: ${cierre.diferencia > 0 ? "+" : ""}${pesos(cierre.diferencia)}`);
       vistaCaja();
     });
   }
 
-  // ---------- GANANCIAS ----------
-  async function vistaGanancias() {
-    const r = await api("GET", `/admin/api/reportes?grupo=${estado.rep.grupo}${estado.rep.clave ? `&clave=${estado.rep.clave}` : ""}`);
-    estado.rep.clave = r.clave;
-    const k = (t, d, oscuro) => `<div class="kpi ${oscuro ? "oscuro" : ""}"><small>${t}</small><strong>${pesos(d.ventas)}</strong><em>${r.hayCostos ? `Ganancia ${pesos(d.ganancia)} · ` : ""}${d.pedidos} cuenta(s)</em></div>`;
-    const max = Math.max(1, ...r.serie.map((s) => s.ventas));
-    const nombreG = { dia: "día", semana: "semana", mes: "mes" }[r.grupo];
-    $("vista-ganancias").innerHTML = `<div class="titulo-vista"><h2>Ganancias</h2></div>
-      <div class="kpis">${k("Hoy", r.resumen.hoy, true)}${k("Esta semana", r.resumen.semana)}${k("Este mes", r.resumen.mes)}</div>
-      ${r.hayCostos ? "" : `<div class="banner"><span>💡 Cargá el <b>costo</b> de tus productos (pestaña Menú) y vas a ver también la ganancia real, no solo lo vendido.</span></div>`}
-      <div class="tarjeta"><div class="titulo-vista" style="margin-bottom:6px"><h3 style="margin:0">Ventas por ${nombreG}</h3>
-        <div class="tabs">${[["dia", "Día"], ["semana", "Semana"], ["mes", "Mes"]].map(([g, t]) => `<button data-a="grupo" data-g="${g}" class="${r.grupo === g ? "sel" : ""}">${t}</button>`).join("")}</div></div>
-        <div class="grafico">${r.serie.map((s) => `<button class="col ${s.clave === r.clave ? "sel" : ""}" data-a="periodo" data-k="${s.clave}" title="${s.etiqueta}: ${pesos(s.ventas)}"><span class="val">${s.ventas ? pesos(s.ventas) : ""}</span><div class="barra-g" style="height:${Math.round((s.ventas / max) * 130)}px"></div><span class="et">${s.etiqueta}</span></button>`).join("")}</div></div>
-      <div class="tarjeta"><h3>Detalle · ${esc(r.etiquetaClave)}</h3>
-        <div class="kpis" style="margin-bottom:0"><div class="kpi" style="background:var(--latte)"><small>Ventas</small><strong>${pesos(r.detalle.ventas)}</strong></div>
-          <div class="kpi" style="background:var(--latte)"><small>${r.hayCostos ? "Ganancia" : "Cuentas cobradas"}</small><strong>${r.hayCostos ? pesos(r.detalle.ganancia) : r.detalle.pedidos}</strong></div>
-          <div class="kpi" style="background:var(--latte)"><small>Ticket promedio</small><strong>${pesos(r.detalle.ticketPromedio)}</strong><em>${r.detalle.pedidos} cuenta(s)</em></div>
-          <div class="kpi" style="background:var(--latte)"><small>Descuentos</small><strong>${pesos(r.detalle.descuentos)}</strong></div></div></div>
-      <div class="dos-col" style="margin-top:14px"><div class="tarjeta"><h3>Cobrado por método</h3>${Object.entries(METODOS).map(([m, v]) => `<div class="metodo-fila"><span>${v}</span><b>${pesos(r.detalle.porMetodo[m])}</b></div>`).join("")}</div>
-        <div class="tarjeta"><h3>Lo más vendido</h3>${r.detalle.top.length ? r.detalle.top.map((t, i) => `<div class="metodo-fila"><span>${i + 1}. ${esc(t.nombre)}</span><b>${t.cantidad} u. · ${pesos(t.total)}</b></div>`).join("") : '<p class="suave">Sin ventas en este período.</p>'}</div></div>`;
-    const g = document.querySelector(".grafico"); if (g) g.scrollLeft = g.scrollWidth; // arranca mostrando lo más reciente
-  }
-
-  // ---------- HISTORIAL ----------
-  async function vistaHistorial(dia) {
-    const j = await api("GET", `/admin/api/historial${dia ? `?dia=${dia}` : ""}`);
-    const total = j.pedidos.reduce((s, p) => s + p.total, 0);
-    $("vista-historial").innerHTML = `<div class="titulo-vista"><h2>Historial</h2><input id="diaH" type="date" value="${j.dia}" style="width:auto"></div>
-      <div class="tarjeta"><p class="suave">${j.pedidos.length} cuenta(s) cobrada(s) · ${pesos(total)} <span>(el día de negocio va de 5:00 a 5:00)</span></p>
-      ${j.pedidos.length ? `<table class="tabla"><thead><tr><th>Ticket</th><th>Mesa</th><th>Hora</th><th>Pago</th><th class="der">Total</th></tr></thead><tbody>${j.pedidos.map((p) => `<tr class="click" data-a="ver-ticket" data-id="${p.id}"><td>#${String(p.numero_ticket).padStart(4, "0")}</td><td>${p.mesa}</td><td>${hora(p.cerrado_en)}</td><td>${METODOS[p.metodo_pago]}</td><td class="der">${pesos(p.total)}</td></tr>`).join("")}</tbody></table><p class="suave">Tocá una fila para ver o reimprimir el ticket.</p>` : '<p class="vacio">No hay cobros en este día.</p>'}</div>`;
-    $("diaH").onchange = (e) => e.target.value && seguro(vistaHistorial)(e.target.value);
-  }
-
   // ---------- AJUSTES ----------
   async function vistaAjustes() {
     estado.ajustes = (await api("GET", "/admin/api/ajustes")).ajustes;
     const a = estado.ajustes;
-    $("vista-ajustes").innerHTML = `<div class="titulo-vista"><h2>Ajustes</h2></div>
+    $("nombreLocal").textContent = a.nombre_local;
+    $("vista-ajustes").innerHTML = `<div class="titulo-vista"><div><p class="eyebrow">Panel de administración</p><h2>Ajustes</h2></div></div>
       <div class="tarjeta"><h3>El local</h3><form id="formAj">
-        <label class="campo"><span>Nombre (sale en el ticket)</span><input name="nombre_local" required maxlength="60" value="${esc(a.nombre_local)}"></label>
-        <label class="campo"><span>Cantidad de mesas</span><input name="cantidad_mesas" type="number" min="1" max="100" required value="${a.cantidad_mesas}"></label>
-        <label class="campo"><input type="checkbox" name="recibir_pedidos" style="width:auto" ${a.recibir_pedidos ? "checked" : ""}> Recibir pedidos desde el celular de los clientes <small>(destildalo para pausarlos)</small></label>
+        <div class="fila-campos"><label class="campo"><span>Nombre (sale en los tickets)</span><input name="nombre_local" required maxlength="60" value="${esc(a.nombre_local)}"></label>
+        <label class="campo"><span>Cantidad de mesas</span><input name="cantidad_mesas" type="number" min="1" max="100" required value="${a.cantidad_mesas}"></label></div>
+        <label class="campo"><input type="checkbox" name="recibir_pedidos" ${a.recibir_pedidos ? "checked" : ""}> Recibir pedidos de mesa desde el celular <small>(destildalo para pausarlos)</small></label>
+        <label class="campo"><input type="checkbox" name="recibir_delivery" ${a.recibir_delivery ? "checked" : ""}> Recibir pedidos de delivery <small>(destildalo cuando no puedas enviar)</small></label>
+        <div class="fila-campos"><label class="campo"><span>Costo de envío ($)</span><input name="costo_envio" type="number" inputmode="decimal" min="0" step="any" value="${a.costo_envio || 0}"></label><div></div></div>
+        <label class="campo"><span>Datos para transferencias <small>(se muestran al cliente que elige pagar por transferencia)</small></span><textarea name="transferencia_info" rows="3" maxlength="300" placeholder="Alias: street.burger&#10;CBU: 0000000000000000000000&#10;Titular: ...">${esc(a.transferencia_info)}</textarea></label>
         <button class="btn btn-principal">Guardar</button></form></div>
       <div class="tarjeta"><h3>QR de las mesas</h3>
-        <p class="suave">Pegá el QR en cada mesa: el cliente lo escanea y entra al menú ya con su número de mesa elegido.${/localhost|127\.0\.0\.1/.test(location.hostname) ? ' <b style="color:var(--error)">Ahora estás en localhost: cuando publiques el sitio, volvé a esta pantalla desde tu dirección real para generar los QR correctos.</b>' : ""}</p>
+        <p class="suave" style="margin-bottom:12px">Pegá el QR en cada mesa: el cliente lo escanea y entra al menú con su mesa elegida.${/localhost|127\.0\.0\.1/.test(location.hostname) ? ' <b style="color:var(--alerta)">Ahora estás en localhost: cuando publiques el sitio, volvé a esta pantalla desde tu dirección real para generar los QR correctos.</b>' : ""}</p>
         <div class="acciones" style="margin-bottom:12px"><button class="btn" data-a="imprimir-qr">🖨️ Imprimir QR de todas las mesas</button></div>
         <div class="qr-grid" id="qrGrid"></div></div>`;
     $("formAj").onsubmit = seguro(async (e) => {
       e.preventDefault(); const fd = new FormData(e.target);
-      estado.ajustes = (await api("PUT", "/admin/api/ajustes", { nombre_local: fd.get("nombre_local"), cantidad_mesas: fd.get("cantidad_mesas"), recibir_pedidos: fd.has("recibir_pedidos") })).ajustes;
+      estado.ajustes = (await api("PUT", "/admin/api/ajustes", { nombre_local: fd.get("nombre_local"), cantidad_mesas: fd.get("cantidad_mesas"), recibir_pedidos: fd.has("recibir_pedidos"), recibir_delivery: fd.has("recibir_delivery"), costo_envio: fd.get("costo_envio") || 0, transferencia_info: fd.get("transferencia_info") })).ajustes;
+      $("nombreLocal").textContent = estado.ajustes.nombre_local;
       toast("Ajustes guardados"); pintarQR();
     });
     pintarQR();
@@ -376,45 +446,65 @@
     if (typeof qrcode === "undefined") return `<small>${esc(url)}</small>`;
     const q = qrcode(0, "M"); q.addData(url); q.make(); return q.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
   }
-  function qrHtml() {
-    return Array.from({ length: estado.ajustes.cantidad_mesas }, (_, i) => `<div class="qr-item"><b>Mesa ${i + 1}</b>${qrSvg(`${location.origin}/?mesa=${i + 1}`)}</div>`).join("");
-  }
-  function pintarQR() { $("qrGrid").innerHTML = qrHtml(); }
+  const qrHtml = () => Array.from({ length: estado.ajustes.cantidad_mesas }, (_, i) => `<div class="qr-item"><b>Mesa ${i + 1}</b>${qrSvg(`${location.origin}/?mesa=${i + 1}`)}</div>`).join("");
+  const pintarQR = () => { $("qrGrid").innerHTML = qrHtml(); };
 
-  // ---------- Eventos de clicks ----------
+  // ---------- Acciones (clicks) ----------
+  const refrescar = async () => { await cargarActivos(); };
   const acciones = {
-    ir: (d) => ir(d.v),
-    mesa: (d) => abrirMesa(Number(d.n)),
-    "cerrar-dlg": (d, el) => { el.closest("dialog").close(); },
-    cant: async (d) => { await api("PATCH", `/admin/api/items/${d.id}`, { cantidad: Number(d.c) }); await pintarMesaAbierta(); cargarMesas(); },
-    agregar: () => abrirAgregar(),
-    filtro: (d) => { estado.filtroCat = d.id ? Number(d.id) : null; pintarAgregar(); },
+    "cerrar-dlg": (d, el) => el.closest("dialog").close(),
+    filtro: (d) => { estado.filtro = d.f; pintarPedidos(); },
+    sonido: () => { estado.sonido = !estado.sonido; guardar("sb_sonido", estado.sonido); if (estado.sonido) beep(); revisarSonido(); pintarPedidos(); },
+    "auto-imprimir": () => { estado.autoImprimir = !estado.autoImprimir; guardar("sb_auto_imprimir", estado.autoImprimir); toast(estado.autoImprimir ? "Se imprime sola la comanda de cada pedido nuevo" : "Impresión automática desactivada"); pintarPedidos(); },
+    visto: async (d) => { await api("POST", `/admin/api/pedidos/${d.id}/visto`); await refrescar(); },
+    "imprimir-pedido": async (d) => {
+      const { pedido } = await api("GET", `/admin/api/pedidos/${d.id}`);
+      await api("POST", `/admin/api/pedidos/${d.id}/visto`); imprimir(comandaHtml(pedido, pedido.items, false)); refrescar();
+    },
+    editar: (d) => abrirEditor(d.id),
+    cant: async (d) => { await api("PATCH", `/admin/api/items/${d.id}`, { cantidad: Number(d.c) }); await pintarEditor(); refrescar(); },
+    agregar: () => abrirAgregar({ pedidoId: estado.pedido.id, mesa: estado.pedido.tipo === "mesa" ? estado.pedido.mesa : null }),
+    "nueva-mesa": () => {
+      const ocupadas = new Set(estado.pedidos.filter((p) => p.tipo === "mesa").map((p) => p.mesa));
+      const libres = Array.from({ length: estado.mesasTotal }, (_, i) => i + 1).filter((n) => !ocupadas.has(n));
+      abrirForm("¿Qué mesa?", libres.length ? `<p class="suave" style="margin-bottom:12px">Mesas libres:</p><div class="mesas-libres">${libres.map((n) => `<button type="button" class="mesa-libre" data-a="elegir-mesa" data-n="${n}">${n}</button>`).join("")}</div>` : '<p class="vacio">Todas las mesas están ocupadas.</p>', async () => {});
+    },
+    "elegir-mesa": (d) => { $("dlgForm").close(); abrirAgregar({ mesa: Number(d.n) }); },
+    "filtro-cat": (d) => { estado.filtroCat = d.id ? Number(d.id) : null; pintarAgregar(); },
     stage: (d) => { estado.stage[d.id] = Math.min(20, (estado.stage[d.id] || 0) + 1); pintarAgregar(); },
     "stage-menos": (d) => { if (--estado.stage[d.id] <= 0) delete estado.stage[d.id]; pintarAgregar(); },
     "confirmar-agregar": async () => {
       const items = Object.entries(estado.stage).map(([productoId, cantidad]) => ({ productoId: Number(productoId), cantidad }));
-      await api("POST", `/admin/api/mesas/${estado.mesaAbierta}/items`, { items });
-      $("dlgAgregar").close(); toast("Agregado a la cuenta"); await pintarMesaAbierta(); cargarMesas();
+      const dest = estado.destinoAgregar;
+      let pedido;
+      if (dest.pedidoId) pedido = (await api("POST", `/admin/api/pedidos/${dest.pedidoId}/items`, { items })).pedido;
+      else pedido = (await api("POST", `/admin/api/mesas/${dest.mesa}/items`, { items })).pedido;
+      $("dlgAgregar").close(); toast("Agregado al pedido");
+      if (estado.autoImprimir) { // comanda solo con lo que se acaba de agregar
+        const todos = estado.menu.flatMap((c) => c.productos);
+        imprimir(comandaHtml(pedido, items.map((i) => ({ cantidad: i.cantidad, nombre: todos.find((p) => p.id === i.productoId)?.nombre || "", nota: "" })), true));
+      }
+      if ($("dlgPedido").open) await pintarEditor();
+      refrescar();
     },
-    cobrar: () => abrirCobro(),
-    pct: (d) => { $("cDesc").value = Math.round(estado.pedido.subtotal * Number(d.p)) / 100 || ""; actualizarCobro(); },
+    cobrar: (d) => { abrirCobro(d.id); },
+    pct: (d) => { $("cDesc").value = Math.round(estado.cobro.p.subtotal * Number(d.p)) / 100 || ""; actualizarCobro(); },
     metodo: (d) => { estado.cobro.metodo = d.m; actualizarCobro(); },
     recibido: (d) => { $("cRec").value = d.v; actualizarCobro(); },
     "confirmar-cobro": async (d, el) => {
       const c = estado.cobro; el.disabled = true;
       try {
-        const body = { metodo: c.metodo, descuento: c.descuento, recibido: c.metodo === "efectivo" && c.recibido !== "" ? c.recibido : undefined };
-        const { pedido } = await api("POST", `/admin/api/pedidos/${estado.pedido.id}/cerrar`, body);
-        $("dlgCobro").close(); $("dlgMesa").close(); estado.mesaAbierta = null;
-        mostrarTicket(pedido, true); cargarMesas();
+        const { pedido } = await api("POST", `/admin/api/pedidos/${c.id}/cerrar`, { metodo: c.metodo, descuento: c.descuento, recibido: c.metodo === "efectivo" && c.recibido !== "" ? c.recibido : undefined });
+        $("dlgCobro").close(); if ($("dlgPedido").open) $("dlgPedido").close(); estado.editandoId = null;
+        mostrarTicket(pedido, true); refrescar();
       } finally { el.disabled = false; }
     },
     "cancelar-pedido": async () => {
-      if (!confirm(`¿Cancelar el pedido de la Mesa ${estado.mesaAbierta}? No se cobra ni queda registrado como venta.`)) return;
+      if (!confirm("¿Cancelar este pedido? No se cobra ni queda como venta.")) return;
       await api("POST", `/admin/api/pedidos/${estado.pedido.id}/cancelar`);
-      $("dlgMesa").close(); estado.mesaAbierta = null; toast("Pedido cancelado"); cargarMesas();
+      $("dlgPedido").close(); estado.editandoId = null; toast("Pedido cancelado"); refrescar();
     },
-    imprimir: () => imprimir(ticketHtml(estado.ticket)),
+    "imprimir-ticket": () => imprimir(ticketHtml(estado.ticket)),
     "cerrar-ticket": () => $("dlgTicket").close(),
     "ver-ticket": async (d) => mostrarTicket((await api("GET", `/admin/api/pedidos/${d.id}`)).pedido, false),
     "nueva-cat": () => formCategoria(),
@@ -430,8 +520,6 @@
       await api("DELETE", `/admin/api/productos/${d.id}`); $("dlgForm").close(); toast("Producto eliminado"); vistaMenu();
     },
     "quitar-foto": () => { $("imgUrl").value = ""; $("prev").hidden = true; },
-    grupo: (d) => { estado.rep = { grupo: d.g, clave: null }; return vistaGanancias(); },
-    periodo: (d) => { estado.rep.clave = d.k; return vistaGanancias(); },
     "imprimir-qr": () => imprimir(`<h2 style="font-family:sans-serif;text-align:center">${esc(estado.ajustes.nombre_local)} · Escaneá y pedí desde tu mesa</h2><div class="qr-grid">${qrHtml()}</div>`),
   };
   document.addEventListener("click", (e) => {
@@ -445,25 +533,36 @@
     if (e.target.id === "cDesc" || e.target.id === "cRec") actualizarCobro();
   });
   $("nav").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) ir(b.dataset.vista); });
-  $("btnSonido").textContent = estado.sonido ? "🔔" : "🔕";
-  $("btnSonido").onclick = () => { estado.sonido = !estado.sonido; guardar("sb_sonido", estado.sonido); $("btnSonido").textContent = estado.sonido ? "🔔" : "🔕"; if (estado.sonido) beep(); };
-  $("dlgMesa").addEventListener("close", () => { estado.mesaAbierta = null; });
+  $("avisoSonido").onclick = desbloquear;
+  $("dlgPedido").addEventListener("close", () => { estado.editandoId = null; });
 
   // ---------- Tiempo real ----------
+  async function alegarPedidoNuevo(ev) {
+    beep();
+    toast(ev.delivery ? "🛵 Nuevo pedido de DELIVERY" : `🍽️ Nuevo pedido en la Mesa ${ev.mesa}`);
+    if (estado.autoImprimir && ev.pedidoId) {
+      const { pedido } = await api("GET", `/admin/api/pedidos/${ev.pedidoId}`);
+      const nuevos = pedido.items.filter((i) => (ev.itemIds || []).includes(i.id));
+      if (nuevos.length) imprimir(comandaHtml(pedido, nuevos, true));
+    }
+  }
   function conectar() {
     const es = new EventSource("/admin/api/eventos");
     es.onmessage = seguro(async (e) => {
       const ev = JSON.parse(e.data);
-      if (ev.tipo === "pedido" || ev.tipo === "aviso") { beep(); toast(ev.tipo === "pedido" ? `🍽️ Nuevo pedido en la Mesa ${ev.mesa}` : `🔔 La Mesa ${ev.mesa} te llama`); }
-      await cargarMesas();
-      if (estado.mesaAbierta && $("dlgMesa").open && !$("dlgCobro").open) await pintarMesaAbierta();
+      if (ev.tipo === "pedido") await alegarPedidoNuevo(ev);
+      else if (ev.tipo === "aviso") { beep(); toast(`🔔 La Mesa ${ev.mesa} te llama`); }
+      await cargarActivos();
     });
   }
 
   (async () => {
     estado.ajustes = (await api("GET", "/admin/api/ajustes").catch(() => ({ ajustes: null }))).ajustes;
-    ir("mesas"); conectar();
-    // Respaldo por si se cae la conexión en vivo
-    setInterval(() => { if (!document.hidden) seguro(cargarMesas)(); }, 20000);
+    if (estado.ajustes) $("nombreLocal").textContent = estado.ajustes.nombre_local;
+    ir("pedidos"); conectar(); revisarSonido();
+    // Respaldo por si se cae la conexión en vivo + recordatorio sonoro mientras haya algo sin ver
+    setInterval(() => { if (!document.hidden) seguro(cargarActivos)(); }, 20000);
+    setInterval(() => { if (estado.pedidos.some((p) => p.sinVer || p.aviso)) beep(); }, 30000);
+    setInterval(() => { if (estado.vista === "pedidos" && !document.hidden) pintarPedidos(); }, 60000); // actualiza los "hace X min"
   })();
 })();
