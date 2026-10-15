@@ -21,7 +21,7 @@ Node.js + Express + MySQL (Sequelize) + EJS. Funciona en celular, tablet y PC.
 ```bash
 npm install
 cp .env.example .env        # completá DB_*, ADMIN_PASSWORD y SESSION_SECRET
-# creá la base vacía en MySQL:  CREATE DATABASE cafeteria_db CHARACTER SET utf8mb4;
+# (la base de datos se crea sola si no existe)
 npm run db:instalar         # crea las tablas y carga un menú de ejemplo
 npm start                   # http://localhost:3000   ·   panel: /admin
 ```
