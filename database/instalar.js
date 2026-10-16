@@ -63,6 +63,10 @@ const MENU = [
     await crearBaseSiFalta();
     const db = require("../src/model/database/models");
     const reset = process.argv.includes("--reset");
+    if (reset && process.env.NODE_ENV === "production" && !process.argv.includes("--si-estoy-seguro")) {
+      console.error("⛔ --reset BORRA TODOS los datos (pedidos, ventas, menú). En producción hay que agregar también --si-estoy-seguro.");
+      process.exit(1);
+    }
     await db.sequelize.sync({ force: reset });
     await require("../src/model/database/actualizar")(db.sequelize);
     console.log(reset ? "🗑️  Tablas recreadas desde cero." : "✅ Tablas listas.");

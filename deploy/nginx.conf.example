@@ -1,0 +1,33 @@
+# Copiá este archivo a /etc/nginx/sites-available/street-burger y cambiá "tudominio.com".
+# Después:  ln -s /etc/nginx/sites-available/street-burger /etc/nginx/sites-enabled/
+#           nginx -t && systemctl reload nginx
+#           certbot --nginx -d tudominio.com -d www.tudominio.com      (activa HTTPS y completa este archivo solo)
+server {
+    listen 80;
+    server_name tudominio.com www.tudominio.com;
+
+    client_max_body_size 8m;          # subida de fotos de productos
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+    }
+
+    # Avisos en vivo del panel (pedidos nuevos): sin buffer ni cortes por inactividad
+    location /admin/api/eventos {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 1h;
+    }
+}

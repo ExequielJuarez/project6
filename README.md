@@ -19,14 +19,18 @@ Node.js + Express + MySQL (Sequelize) + EJS. Funciona en celular, tablet y PC.
 
 **Sonido e impresión automática:** los navegadores exigen un toque en la página para activar el audio (el panel te lo avisa). La impresión automática abre el cuadro de impresión de Chrome en cada pedido; para que imprima **sin preguntar**, abrí Chrome con `--kiosk-printing` (y poné tu impresora térmica como predeterminada).
 
+> **Para publicarlo en un servidor (VPS) mirá [DEPLOY.md](DEPLOY.md).**
+
 ## Puesta en marcha
 
 ```bash
 npm install
 cp .env.example .env        # completá DB_*, ADMIN_PASSWORD y SESSION_SECRET
+                            # (en tu compu cambiá NODE_ENV=production por NODE_ENV=development y COOKIE_SECURE/TRUST_PROXY por false)
 # (la base de datos se crea sola si no existe)
 npm run db:instalar         # crea la base, las tablas y carga un menú de ejemplo
-npm start                   # http://localhost:3000   ·   panel: /admin
+npm run dev                 # http://localhost:3000 (se reinicia solo al editar)
+# npm start                 # modo normal, sin reinicio automático   ·   panel: /admin
 ```
 
 - Si ya tenías la base de una versión anterior, **no hace falta reinstalar**: al arrancar el servidor agrega solo las columnas nuevas (delivery) sin borrar nada.

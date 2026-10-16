@@ -12,6 +12,19 @@ const adminRouter = require("./routes/admin.Routes");
 const app = express();
 const puerto = process.env.PORT || 3000;
 
+const produccion = process.env.NODE_ENV === "production";
+if (produccion) {
+  // En producción no se arranca con claves por defecto o sin definir: sería dejar el panel abierto
+  const errores = [];
+  if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 16) errores.push("SESSION_SECRET (un texto largo y aleatorio, mínimo 16 caracteres)");
+  const clave = process.env.ADMIN_PASSWORD;
+  if (!process.env.ADMIN_PASSWORD_HASH && (!clave || clave.length < 8 || /cambiame|prueba|1234/i.test(clave))) errores.push("ADMIN_PASSWORD (una contraseña segura de al menos 8 caracteres)");
+  if (errores.length) {
+    console.error("❌ Falta configurar en el archivo .env:\n   - " + errores.join("\n   - "));
+    process.exit(1);
+  }
+}
+app.disable("x-powered-by");
 if (process.env.TRUST_PROXY) app.set("trust proxy", process.env.TRUST_PROXY === "true" ? 1 : process.env.TRUST_PROXY);
 fs.mkdirSync(path.join(__dirname, "../public/uploads"), { recursive: true });
 
@@ -22,15 +35,22 @@ app.use((req, res, next) => {
   res.set({ "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "same-origin" });
   next();
 });
+// Las fotos cambian poco: se guardan una semana en el navegador. CSS y JS se revalidan siempre (los cambios llegan al instante).
+app.use("/img", express.static(path.join(__dirname, "../public/img"), { maxAge: "7d" }));
+app.use("/uploads", express.static(path.join(__dirname, "../public/uploads"), { maxAge: "7d" }));
 app.use(express.static(path.join(__dirname, "../public")));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json({ limit: "100kb" }));
+
+const SequelizeStore = require("connect-session-sequelize")(session.Store);
+const tiendaSesiones = produccion ? new SequelizeStore({ db: db.sequelize, tableName: "sesiones", expiration: 12 * 3600e3 }) : undefined;
 
 const secreto = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 if (!process.env.SESSION_SECRET) console.warn("⚠️  Definí SESSION_SECRET en el .env (si no, el panel te pide la clave de nuevo cada vez que se reinicia el servidor).");
 app.use(
   session({
     name: "sb_admin",
+    store: tiendaSesiones, // en desarrollo: memoria; en producción: tabla "sesiones" de la base
     secret: secreto,
     resave: false,
     saveUninitialized: false,
@@ -40,6 +60,12 @@ app.use(
 
 // Helpers disponibles en las vistas
 app.locals.formatoPrecio = (n) => "$" + Number(n).toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+// Para que un monitor (o vos) verifique que el sitio y la base responden
+app.get("/salud", async (req, res) => {
+  try { await db.sequelize.query("SELECT 1"); res.json({ ok: true }); }
+  catch { res.status(503).json({ ok: false }); }
+});
 
 app.use("/admin", adminRouter);
 app.use("/", indexRouter);
@@ -69,6 +95,7 @@ app.use((err, req, res, next) => {
 db.sequelize
   .authenticate()
   .then(() => require("./model/database/actualizar")(db.sequelize))
+  .then(() => tiendaSesiones && tiendaSesiones.sync())
   .then(() => {
     console.log(`✅ Conectado a la base de datos "${db.sequelize.config.database}"`);
     if (!process.env.ADMIN_PASSWORD && !process.env.ADMIN_PASSWORD_HASH) console.warn("⚠️  Definí ADMIN_PASSWORD en el .env para poder entrar a /admin.");
