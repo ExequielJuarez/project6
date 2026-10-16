@@ -1,5 +1,6 @@
 // Panel de administración: pedidos en vivo (mesas + delivery), ventas, menú, caja y ajustes.
 (() => {
+  const BASE = document.body.dataset.base; // dirección secreta del panel (la pone el servidor)
   const $ = (id) => document.getElementById(id);
   const pesos = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 2 });
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -132,7 +133,7 @@
   async function vistaPedidos() { await cargarActivos(); }
 
   async function cargarActivos() {
-    const j = await api("GET", "/admin/api/pedidos/activos");
+    const j = await api("GET", BASE + "/api/pedidos/activos");
     estado.pedidos = j.pedidos; estado.mesasTotal = j.mesas; estado.caja = j.caja;
     const nuevos = j.pedidos.filter((p) => p.sinVer || p.aviso).length;
     $("pastillaPedidos").hidden = !nuevos; $("pastillaPedidos").textContent = nuevos;
@@ -157,7 +158,7 @@
     $("formCajaObl").onsubmit = async (e) => {
       e.preventDefault();
       try {
-        await api("POST", "/admin/api/caja/abrir", { monto: $("cajaMonto").value });
+        await api("POST", BASE + "/api/caja/abrir", { monto: $("cajaMonto").value });
       } catch (err) {
         if (!/ya está abierta/i.test(err.message)) { $("cajaError").textContent = err.message; $("cajaError").hidden = false; return; }
       }
@@ -249,10 +250,10 @@
     estado.editandoId = Number(id);
     await pintarEditor();
     if (!$("dlgPedido").open) $("dlgPedido").showModal();
-    await api("POST", `/admin/api/pedidos/${id}/visto`).catch(() => {});
+    await api("POST", `${BASE}/api/pedidos/${id}/visto`).catch(() => {});
   }
   async function pintarEditor() {
-    const { pedido: p } = await api("GET", `/admin/api/pedidos/${estado.editandoId}`);
+    const { pedido: p } = await api("GET", `${BASE}/api/pedidos/${estado.editandoId}`);
     if (p.estado !== "abierto") { $("dlgPedido").close(); estado.editandoId = null; return; }
     estado.pedido = p;
     $("dlgPedido").innerHTML = `
@@ -276,7 +277,7 @@
 
   // ----- Agregar productos (a un pedido existente o a una mesa nueva) -----
   async function abrirAgregar(destino) {
-    if (!estado.menu.length) estado.menu = (await api("GET", "/admin/api/menu")).categorias;
+    if (!estado.menu.length) estado.menu = (await api("GET", BASE + "/api/menu")).categorias;
     estado.destinoAgregar = destino; estado.stage = {}; estado.filtroCat = null; estado.busqueda = "";
     pintarAgregar(); $("dlgAgregar").showModal();
   }
@@ -335,7 +336,7 @@
 
   // ---------- VENTAS ----------
   async function vistaVentas(dia) {
-    const j = await api("GET", `/admin/api/ventas${dia || estado.dia ? `?dia=${dia || estado.dia}` : ""}`);
+    const j = await api("GET", `${BASE}/api/ventas${dia || estado.dia ? `?dia=${dia || estado.dia}` : ""}`);
     estado.dia = j.dia;
     const r = j.resumen;
     $("vista-ventas").innerHTML = `<div class="titulo-vista"><div><p class="eyebrow">Panel de administración</p><h2>Ventas</h2><p>Todo lo que ya se cobró o despachó. Elegí un día para consultarlo.</p></div></div>
@@ -351,7 +352,7 @@
 
   // ---------- MENÚ ----------
   async function vistaMenu() {
-    estado.menu = (await api("GET", "/admin/api/menu")).categorias;
+    estado.menu = (await api("GET", BASE + "/api/menu")).categorias;
     $("vista-menu").innerHTML = `<div class="titulo-vista"><div><p class="eyebrow">Panel de administración</p><h2>Menú</h2><p>Lo que ven tus clientes. Pausá un producto si se acabó.</p></div><button class="btn btn-principal" data-a="nueva-cat">＋ Categoría</button></div>
       ${estado.menu.map((c) => `<div class="tarjeta cat-admin">
         <div class="cat-cab"><h3>${c.imagen ? `<img src="${esc(c.imagen)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px">` : c.icono + " "}${esc(c.nombre)} ${c.activo ? "" : '<span class="etq">OCULTA</span>'}</h3>
@@ -378,7 +379,7 @@
       const f = e.target.files[0]; if (!f) return;
       const blob = await reducirImagen(f);
       const fd = new FormData(); fd.append("imagen", blob, "foto.jpg");
-      const { url } = await api("POST", "/admin/api/imagenes", fd);
+      const { url } = await api("POST", BASE + "/api/imagenes", fd);
       $("imgUrl").value = url; $("prev").src = url; $("prev").hidden = false;
     });
   }
@@ -391,7 +392,7 @@
       <label class="campo"><input type="checkbox" name="activo" ${c?.activo !== false ? "checked" : ""}> Visible en el menú</label>
       <div class="acciones"><button class="btn btn-principal" style="flex:1">Guardar</button>${c ? `<button type="button" class="btn btn-peligro" data-a="borrar-cat" data-id="${c.id}">Eliminar</button>` : ""}</div>`,
       async (fd) => {
-        await api(c ? "PUT" : "POST", c ? `/admin/api/categorias/${c.id}` : "/admin/api/categorias", { nombre: fd.get("nombre"), icono: fd.get("icono"), orden: fd.get("orden"), imagen: fd.get("imagen"), activo: fd.has("activo") });
+        await api(c ? "PUT" : "POST", c ? `${BASE}/api/categorias/${c.id}` : BASE + "/api/categorias", { nombre: fd.get("nombre"), icono: fd.get("icono"), orden: fd.get("orden"), imagen: fd.get("imagen"), activo: fd.has("activo") });
         $("dlgForm").close(); toast("Categoría guardada"); vistaMenu();
       });
     enlazarFoto();
@@ -406,7 +407,7 @@
       <label class="campo"><input type="checkbox" name="activo" ${p?.activo !== false ? "checked" : ""}> Disponible (destildalo si se acabó)</label>
       <div class="acciones"><button class="btn btn-principal" style="flex:1">Guardar</button>${p ? `<button type="button" class="btn btn-peligro" data-a="borrar-prod" data-id="${p.id}">Eliminar</button>` : ""}</div>`,
       async (fd) => {
-        await api(p ? "PUT" : "POST", p ? `/admin/api/productos/${p.id}` : "/admin/api/productos", { nombre: fd.get("nombre"), descripcion: fd.get("descripcion"), precio: fd.get("precio"), categoria_id: fd.get("categoria_id"), imagen: fd.get("imagen"), activo: fd.has("activo") });
+        await api(p ? "PUT" : "POST", p ? `${BASE}/api/productos/${p.id}` : BASE + "/api/productos", { nombre: fd.get("nombre"), descripcion: fd.get("descripcion"), precio: fd.get("precio"), categoria_id: fd.get("categoria_id"), imagen: fd.get("imagen"), activo: fd.has("activo") });
         $("dlgForm").close(); toast("Producto guardado"); vistaMenu();
       });
     enlazarFoto();
@@ -428,7 +429,7 @@
 
   // ---------- CAJA (opcional) ----------
   async function vistaCaja() {
-    const { actual, historial } = await api("GET", "/admin/api/caja");
+    const { actual, historial } = await api("GET", BASE + "/api/caja");
     let html = `<div class="titulo-vista"><div><p class="eyebrow">Panel de administración</p><h2>Caja</h2><p>Opcional: sirve para controlar el efectivo del día. No hace falta para cobrar.</p></div></div>`;
     if (!actual) {
       html += `<div class="tarjeta"><h3>La caja está cerrada</h3><p class="suave" style="margin-bottom:12px">Abrila indicando con cuánto efectivo empezás (el cambio).</p>
@@ -455,11 +456,11 @@
     html += `<div class="tarjeta"><h3>Cierres anteriores</h3>${historial.length ? `<table class="tabla"><thead><tr><th>Cierre</th><th class="der">Ventas</th><th class="der">Esperado</th><th class="der">Contado</th><th class="der">Diferencia</th></tr></thead><tbody>${historial.map((h) => `<tr><td>${fechaHora(h.cerrado_en)}</td><td class="der">${pesos(h.totalVentas)}</td><td class="der">${pesos(h.monto_esperado)}</td><td class="der">${pesos(h.monto_contado)}</td><td class="der ${h.diferencia === 0 ? "" : h.diferencia > 0 ? "pos" : "neg"}">${h.diferencia > 0 ? "+" : ""}${pesos(h.diferencia)}</td></tr>`).join("")}</tbody></table>` : '<p class="suave">Todavía no cerraste ninguna caja.</p>'}</div>`;
     $("vista-caja").innerHTML = html;
     const f = (id, fn) => $(id) && ($(id).onsubmit = seguro(async (e) => { e.preventDefault(); await fn(Object.fromEntries(new FormData(e.target))); }));
-    f("formAbrir", async (b) => { await api("POST", "/admin/api/caja/abrir", b); toast("Caja abierta"); vistaCaja(); });
-    f("formMov", async (b) => { await api("POST", "/admin/api/caja/movimientos", b); toast("Movimiento registrado"); vistaCaja(); });
+    f("formAbrir", async (b) => { await api("POST", BASE + "/api/caja/abrir", b); toast("Caja abierta"); vistaCaja(); });
+    f("formMov", async (b) => { await api("POST", BASE + "/api/caja/movimientos", b); toast("Movimiento registrado"); vistaCaja(); });
     f("formCerrar", async (b) => {
       if (!confirm("¿Cerrar la caja?")) return;
-      const { cierre } = await api("POST", "/admin/api/caja/cerrar", b);
+      const { cierre } = await api("POST", BASE + "/api/caja/cerrar", b);
       alert(`Caja cerrada.\n\nEsperado: ${pesos(cierre.esperado)}\nContado: ${pesos(cierre.turno.monto_contado)}\nDiferencia: ${cierre.diferencia > 0 ? "+" : ""}${pesos(cierre.diferencia)}`);
       vistaCaja();
     });
@@ -467,7 +468,7 @@
 
   // ---------- AJUSTES ----------
   async function vistaAjustes() {
-    estado.ajustes = (await api("GET", "/admin/api/ajustes")).ajustes;
+    estado.ajustes = (await api("GET", BASE + "/api/ajustes")).ajustes;
     const a = estado.ajustes;
     $("nombreLocal").textContent = a.nombre_local;
     $("vista-ajustes").innerHTML = `<div class="titulo-vista"><div><p class="eyebrow">Panel de administración</p><h2>Ajustes</h2></div></div>
@@ -487,7 +488,7 @@
         <div class="qr-grid" id="qrGrid"></div></div>`;
     $("formAj").onsubmit = seguro(async (e) => {
       e.preventDefault(); const fd = new FormData(e.target);
-      estado.ajustes = (await api("PUT", "/admin/api/ajustes", { nombre_local: fd.get("nombre_local"), cantidad_mesas: fd.get("cantidad_mesas"), recibir_pedidos: fd.has("recibir_pedidos"), recibir_delivery: fd.has("recibir_delivery"), costo_envio: fd.get("costo_envio") || 0, tiempo_estimado: fd.get("tiempo_estimado"), direccion_local: fd.get("direccion_local"), transferencia_info: fd.get("transferencia_info") })).ajustes;
+      estado.ajustes = (await api("PUT", BASE + "/api/ajustes", { nombre_local: fd.get("nombre_local"), cantidad_mesas: fd.get("cantidad_mesas"), recibir_pedidos: fd.has("recibir_pedidos"), recibir_delivery: fd.has("recibir_delivery"), costo_envio: fd.get("costo_envio") || 0, tiempo_estimado: fd.get("tiempo_estimado"), direccion_local: fd.get("direccion_local"), transferencia_info: fd.get("transferencia_info") })).ajustes;
       $("nombreLocal").textContent = estado.ajustes.nombre_local;
       toast("Ajustes guardados"); await pintarQR();
     });
@@ -498,7 +499,7 @@
     const q = qrcode(0, "M"); q.addData(url); q.make(); return q.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
   }
   const qrHtml = () => (estado.qr || []).map(({ mesa, t }) => `<div class="qr-item"><b>Mesa ${mesa}</b>${qrSvg(`${location.origin}/?mesa=${mesa}&t=${t}`)}</div>`).join("");
-  async function pintarQR() { estado.qr = (await api("GET", "/admin/api/qr")).mesas; $("qrGrid").innerHTML = qrHtml(); }
+  async function pintarQR() { estado.qr = (await api("GET", BASE + "/api/qr")).mesas; $("qrGrid").innerHTML = qrHtml(); }
 
   // ---------- Acciones (clicks) ----------
   const refrescar = async () => { await cargarActivos(); };
@@ -507,13 +508,13 @@
     filtro: (d) => { estado.filtro = d.f; pintarPedidos(); },
     sonido: () => { estado.sonido = !estado.sonido; guardar("sb_sonido", estado.sonido); if (estado.sonido) beep(); revisarSonido(); pintarPedidos(); },
     "auto-imprimir": () => { estado.autoImprimir = !estado.autoImprimir; guardar("sb_auto_imprimir", estado.autoImprimir); toast(estado.autoImprimir ? "Se imprime sola la comanda de cada pedido nuevo" : "Impresión automática desactivada"); pintarPedidos(); },
-    visto: async (d) => { await api("POST", `/admin/api/pedidos/${d.id}/visto`); await refrescar(); },
+    visto: async (d) => { await api("POST", `${BASE}/api/pedidos/${d.id}/visto`); await refrescar(); },
     "imprimir-pedido": async (d) => {
-      const { pedido } = await api("GET", `/admin/api/pedidos/${d.id}`);
-      await api("POST", `/admin/api/pedidos/${d.id}/visto`); imprimir(comandaHtml(pedido, pedido.items, false)); refrescar();
+      const { pedido } = await api("GET", `${BASE}/api/pedidos/${d.id}`);
+      await api("POST", `${BASE}/api/pedidos/${d.id}/visto`); imprimir(comandaHtml(pedido, pedido.items, false)); refrescar();
     },
     editar: (d) => abrirEditor(d.id),
-    cant: async (d) => { await api("PATCH", `/admin/api/items/${d.id}`, { cantidad: Number(d.c) }); await pintarEditor(); refrescar(); },
+    cant: async (d) => { await api("PATCH", `${BASE}/api/items/${d.id}`, { cantidad: Number(d.c) }); await pintarEditor(); refrescar(); },
     agregar: () => abrirAgregar({ pedidoId: estado.pedido.id, mesa: estado.pedido.tipo === "mesa" ? estado.pedido.mesa : null }),
     "nueva-mesa": () => {
       const ocupadas = new Set(estado.pedidos.filter((p) => p.tipo === "mesa").map((p) => p.mesa));
@@ -528,8 +529,8 @@
       const items = Object.entries(estado.stage).map(([productoId, cantidad]) => ({ productoId: Number(productoId), cantidad }));
       const dest = estado.destinoAgregar;
       let pedido;
-      if (dest.pedidoId) pedido = (await api("POST", `/admin/api/pedidos/${dest.pedidoId}/items`, { items })).pedido;
-      else pedido = (await api("POST", `/admin/api/mesas/${dest.mesa}/items`, { items })).pedido;
+      if (dest.pedidoId) pedido = (await api("POST", `${BASE}/api/pedidos/${dest.pedidoId}/items`, { items })).pedido;
+      else pedido = (await api("POST", `${BASE}/api/mesas/${dest.mesa}/items`, { items })).pedido;
       $("dlgAgregar").close(); toast("Agregado al pedido");
       if (estado.autoImprimir) { // comanda solo con lo que se acaba de agregar
         const todos = estado.menu.flatMap((c) => c.productos);
@@ -545,7 +546,7 @@
     "confirmar-cobro": async (d, el) => {
       const c = estado.cobro; el.disabled = true;
       try {
-        const { pedido } = await api("POST", `/admin/api/pedidos/${c.id}/cerrar`, { metodo: c.metodo, descuento: c.descuento, recibido: c.metodo === "efectivo" && c.recibido !== "" ? c.recibido : undefined });
+        const { pedido } = await api("POST", `${BASE}/api/pedidos/${c.id}/cerrar`, { metodo: c.metodo, descuento: c.descuento, recibido: c.metodo === "efectivo" && c.recibido !== "" ? c.recibido : undefined });
         $("dlgCobro").close(); if ($("dlgPedido").open) $("dlgPedido").close(); estado.editandoId = null;
         mostrarTicket(pedido, true); refrescar();
       } finally { el.disabled = false; }
@@ -556,25 +557,25 @@
     "si-cancelar": async (d, el) => {
       el.disabled = true;
       try {
-        await api("POST", `/admin/api/pedidos/${d.id}/cancelar`);
+        await api("POST", `${BASE}/api/pedidos/${d.id}/cancelar`);
         $("dlgConfirmar").close(); if ($("dlgPedido").open) $("dlgPedido").close(); estado.editandoId = null;
         toast("Pedido cancelado"); refrescar();
       } catch (e) { el.disabled = false; throw e; }
     },
     "imprimir-ticket": () => imprimir(ticketHtml(estado.ticket)),
     "cerrar-ticket": () => $("dlgTicket").close(),
-    "ver-ticket": async (d) => mostrarTicket((await api("GET", `/admin/api/pedidos/${d.id}`)).pedido, false),
+    "ver-ticket": async (d) => mostrarTicket((await api("GET", `${BASE}/api/pedidos/${d.id}`)).pedido, false),
     "nueva-cat": () => formCategoria(),
     "editar-cat": (d) => formCategoria(estado.menu.find((c) => c.id == d.id)),
     "borrar-cat": async (d) => {
       if (!confirm("¿Eliminar la categoría y TODOS sus productos? Las ventas ya registradas no se modifican.")) return;
-      await api("DELETE", `/admin/api/categorias/${d.id}`); $("dlgForm").close(); toast("Categoría eliminada"); vistaMenu();
+      await api("DELETE", `${BASE}/api/categorias/${d.id}`); $("dlgForm").close(); toast("Categoría eliminada"); vistaMenu();
     },
     "nuevo-prod": (d) => formProducto(null, Number(d.id)),
     "editar-prod": (d) => formProducto(estado.menu.flatMap((c) => c.productos).find((p) => p.id == d.id)),
     "borrar-prod": async (d) => {
       if (!confirm("¿Eliminar este producto? Si solo se acabó, mejor destildá \"Disponible\".")) return;
-      await api("DELETE", `/admin/api/productos/${d.id}`); $("dlgForm").close(); toast("Producto eliminado"); vistaMenu();
+      await api("DELETE", `${BASE}/api/productos/${d.id}`); $("dlgForm").close(); toast("Producto eliminado"); vistaMenu();
     },
     "quitar-foto": () => { $("imgUrl").value = ""; $("prev").hidden = true; },
     "imprimir-qr": async () => { if (!estado.qr) await pintarQR(); imprimir(`<h2 style="font-family:sans-serif;text-align:center">${esc(estado.ajustes.nombre_local)} · Escaneá y pedí desde tu mesa</h2><div class="qr-grid">${qrHtml()}</div>`); },
@@ -599,13 +600,13 @@
     beep();
     toast(ev.delivery ? "🛵 Nuevo pedido de DELIVERY" : `🍽️ Nuevo pedido en la Mesa ${ev.mesa}`);
     if (estado.autoImprimir && ev.pedidoId) {
-      const { pedido } = await api("GET", `/admin/api/pedidos/${ev.pedidoId}`);
+      const { pedido } = await api("GET", `${BASE}/api/pedidos/${ev.pedidoId}`);
       const nuevos = pedido.items.filter((i) => (ev.itemIds || []).includes(i.id));
       if (nuevos.length) imprimir(comandaHtml(pedido, nuevos, true));
     }
   }
   function conectar() {
-    const es = new EventSource("/admin/api/eventos");
+    const es = new EventSource(BASE + "/api/eventos");
     es.onmessage = seguro(async (e) => {
       const ev = JSON.parse(e.data);
       if (ev.tipo === "pedido") await alegarPedidoNuevo(ev);
@@ -615,7 +616,7 @@
   }
 
   (async () => {
-    estado.ajustes = (await api("GET", "/admin/api/ajustes").catch(() => ({ ajustes: null }))).ajustes;
+    estado.ajustes = (await api("GET", BASE + "/api/ajustes").catch(() => ({ ajustes: null }))).ajustes;
     if (estado.ajustes) $("nombreLocal").textContent = estado.ajustes.nombre_local;
     ir("pedidos"); conectar(); revisarSonido();
     // Respaldo por si se cae la conexión en vivo + recordatorio sonoro mientras haya algo sin ver
