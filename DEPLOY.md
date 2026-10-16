@@ -187,9 +187,42 @@ npm run db:menu -- --limpiar-pedidos --si-estoy-seguro     # además borra pedid
 
 > `--limpiar-pedidos` borra **todos** los pedidos y ventas. Usalo únicamente antes de empezar a trabajar de verdad.
 
+## Dejar la base "desde cero" para empezar a trabajar
+
+Si probaste el sistema (pedidos, ventas, cajas de prueba) y querés empezar limpio **conservando tu menú y tus ajustes**:
+
+```bash
+cd /var/www/street-burger
+npm run db:limpiar -- --si-estoy-seguro
+```
+
+Borra todos los pedidos, ventas y cajas y reinicia la numeración. **No toca** los productos, las categorías ni los ajustes. Hacelo solo antes de empezar de verdad: una vez que tengas ventas reales, no lo uses.
+
 ## Copias de seguridad
 
-Manual (guarda la base y las fotos en `~/backups-street-burger`):
+### Desde el panel (lo más fácil)
+
+Entrá al panel → **Ajustes → Copia de seguridad**:
+- **Descargar copia de la base de datos**: baja un archivo `street-burger-base-FECHA.sql.gz` con todo (productos, pedidos, ventas, cajas y ajustes).
+- **Descargar fotos subidas**: baja las fotos de productos que subiste desde el panel.
+
+Guardalas en tu computadora o en la nube (Google Drive, por ejemplo). Contienen datos de clientes: no las compartas. Conviene descargarlas una vez por semana, o todos los días al cerrar la caja.
+
+### Restaurar una copia (necesita la consola del servidor)
+
+Subí el archivo al servidor (con FileZilla/WinSCP o `scp`) y ejecutá (reemplaza los datos actuales por los de la copia):
+
+```bash
+gunzip -c street-burger-base-FECHA.sql.gz | mysql -u street_burger -p street_burger_db
+pm2 restart street-burger
+```
+
+Para las fotos: `tar -xzf street-burger-fotos-FECHA.tar.gz -C /var/www/street-burger/public/uploads`
+
+### Automática en el servidor
+
+
+Manual por consola (guarda la base y las fotos en `~/backups-street-burger`):
 
 ```bash
 cd /var/www/street-burger && bash deploy/backup.sh
