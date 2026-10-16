@@ -41,16 +41,17 @@
     <% } %>
 
     <div class="ubic">
-      <button type="button" class="ubic-izq" id="btnMesa">
+      <div class="ubic-izq" id="btnMesa">
         <svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
-        <span id="mesaTxt">Elegí tu mesa</span>
-        <svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
-      </button>
+        <span id="mesaTxt">Escaneá el QR de tu mesa</span>
+      </div>
       <button type="button" class="ubic-der" id="ubicDer">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
         <span id="ubicDerTxt">Ver horarios</span>
       </button>
     </div>
+
+    <div class="aviso" id="avisoQr" hidden></div>
 
     <% if (!config.recibir_pedidos) { %>
       <div class="aviso">Por ahora no tomamos pedidos desde el celular. Pedile al mozo 🙂</div>
@@ -127,17 +128,10 @@
     </button>
   </nav>
 
-  <!-- Elegir mesa -->
-  <dialog id="dlgMesa">
-    <div class="dlg-cab"><h2>¿En qué mesa estás?</h2><button class="cerrar" data-cerrar aria-label="Cerrar">✕</button></div>
-    <p class="dlg-sub">Tocá el número que figura en tu mesa.</p>
-    <div class="mesas" id="gridMesas"></div>
-  </dialog>
-
   <!-- Mi pedido (carrito) -->
   <dialog id="dlgCarrito" class="hoja">
     <div class="dlg-cab"><h2>Tu pedido</h2><button class="cerrar" data-cerrar aria-label="Cerrar">✕</button></div>
-    <div class="para-mesa" id="paraMesa">Para la <strong id="carritoMesa">mesa</strong> <button type="button" class="link" id="cambiarMesa">cambiar</button></div>
+    <div class="para-mesa" id="paraMesa">Para la <strong id="carritoMesa">mesa</strong></div>
     <div id="carritoLista" class="lista"></div>
     <div id="datosDelivery" class="datos" hidden>
       <h3>Tus datos para la entrega</h3>
@@ -194,8 +188,6 @@
       <button type="button" class="modo" data-modo="delivery">🛵 Delivery</button>
     </div>
     <% } %>
-    <p class="op-tit">Mesa</p>
-    <button type="button" class="op-fila" id="opMesa"><span id="opMesaTxt">Elegir mesa</span><span aria-hidden="true">›</span></button>
     <p class="op-tit">Más</p>
     <button type="button" class="op-fila" id="opHorarios"><span>🕒 Horarios del local</span><span aria-hidden="true">›</span></button>
     <button type="button" class="op-fila" id="opBorrar" hidden><span>🗑️ Borrar mis datos guardados</span><span aria-hidden="true">›</span></button>
@@ -217,6 +209,7 @@
   <script type="application/json" id="datos"><%- JSON.stringify({
     mesas: config.cantidad_mesas,
     mesaUrl,
+    tokenUrl,
     recibir: config.recibir_pedidos,
     delivery: config.recibir_delivery,
     envio: config.costo_envio,

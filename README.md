@@ -5,7 +5,7 @@ Node.js + Express + MySQL (Sequelize) + EJS. Funciona en celular, tablet y PC.
 ## Cómo funciona
 
 **Cliente** (`/`): arriba elige **En mesa** o **Delivery**.
-- *En mesa*: elige su mesa (o escanea el QR `/?mesa=5`), arma el pedido y lo envía. Puede volver a pedir, ver su cuenta, pedir la cuenta o llamar al mozo.
+- *En mesa*: la mesa **se fija escaneando el QR de la mesa** (no se puede elegir a mano: cada QR lleva un código secreto, así nadie pide en una mesa en la que no está). Arma el pedido y lo envía. Puede volver a pedir, ver su cuenta, pedir la cuenta o llamar al mozo.
 - *Delivery*: arma el pedido y deja nombre, WhatsApp, dirección, referencias y cómo paga (efectivo —con cuánto abona— o transferencia). Si elige transferencia ve tus datos bancarios.
 
 **Administrador** (`/admin`, con contraseña) — pensado para que solo llegue el pedido y se atienda:

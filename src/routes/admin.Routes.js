@@ -13,6 +13,7 @@ const caja = require("../services/cajaService");
 const reportes = require("../services/reporteService");
 const fechas = require("../helpers/fechas");
 const { ErrorNegocio } = require("../helpers/errores");
+const { tokenDeMesa } = require("../helpers/mesaToken");
 
 const router = express.Router();
 const limiteLogin = limitador({ max: 8, ventanaMs: 15 * 60_000, mensaje: "Demasiados intentos. Probá de nuevo en 15 minutos.", soloFallos: true, responder: (req, res, mensaje) => res.status(429).render("admin/login", { configurada: true, error: mensaje }) });
@@ -65,6 +66,11 @@ api.get("/eventos", (req, res) => {
   req.on("close", () => { clearInterval(latido); pedidos.eventos.off("cambio", enviar); });
 });
 
+// Códigos de las mesas para armar los QR (el panel arma la dirección con su propio dominio)
+api.get("/qr", async (req, res) => {
+  const { cantidad_mesas } = await ajustes.todos();
+  res.json({ ok: true, mesas: Array.from({ length: cantidad_mesas }, (_, i) => ({ mesa: i + 1, t: tokenDeMesa(i + 1) })) });
+});
 api.get("/ajustes", async (req, res) => res.json({ ok: true, ajustes: await ajustes.todos() }));
 api.put("/ajustes", async (req, res) => res.json({ ok: true, ajustes: await ajustes.guardar(req.body) }));
 

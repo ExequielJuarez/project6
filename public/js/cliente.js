@@ -1,16 +1,16 @@
-// Menú del cliente: elegir mesa, armar el pedido y enviarlo.
+// Menú del cliente: la mesa se fija escaneando el QR de la mesa; armar el pedido y enviarlo.
 (() => {
   const datos = JSON.parse(document.getElementById("datos").textContent);
   const $ = (id) => document.getElementById(id);
   const pesos = (n) => "$" + Number(n).toLocaleString("es-AR", { maximumFractionDigits: 2 });
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const VIGENCIA_MESA = 3 * 3600e3; // la mesa elegida se "olvida" a las 3 horas
+  const VIGENCIA_MESA = 3 * 3600e3; // la mesa del QR se "olvida" a las 3 horas
 
   // ---- Estado guardado en el celular ----
   const leer = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) ?? def; } catch { return def; } };
   const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
-  let mesa = null;
+  let mesa = null, tokenMesa = ""; // mesa y código secreto que vienen en el QR
   let carrito = leer("sb_carrito", {}); // { idProducto: { cant, nota } }
   Object.keys(carrito).forEach((id) => { if (!datos.productos[id]) delete carrito[id]; });
 
@@ -19,21 +19,30 @@
   let pago = "efectivo";
   const cliente = leer("sb_cliente", {});
 
+  // La mesa SOLO se fija escaneando el QR (?mesa=4&t=código). Sin QR no hay mesa.
   const m = leer("sb_mesa", null);
-  if (datos.mesaUrl && datos.mesaUrl >= 1 && datos.mesaUrl <= datos.mesas) {
-    setMesa(datos.mesaUrl); // vino por el QR de la mesa
-    history.replaceState(null, "", location.pathname);
-  } else if (m && Date.now() - m.ts < VIGENCIA_MESA && m.n <= datos.mesas) {
-    mesa = m.n;
+  let qrViejo = false;
+  if (datos.mesaUrl >= 1 && datos.mesaUrl <= datos.mesas && datos.tokenUrl) {
+    setMesa(datos.mesaUrl, datos.tokenUrl);
+    history.replaceState(null, "", location.pathname); // saca el código de la barra de direcciones
+  } else if (datos.mesaUrl) {
+    qrViejo = true; // un QR impreso antes de que existieran los códigos
+  } else if (m && m.t && Date.now() - m.ts < VIGENCIA_MESA && m.n >= 1 && m.n <= datos.mesas) {
+    mesa = m.n; tokenMesa = m.t;
   }
-  function setMesa(n) { mesa = n; guardar("sb_mesa", { n, ts: Date.now() }); pintarMesa(); }
+  function setMesa(n, t) { mesa = n; tokenMesa = t; guardar("sb_mesa", { n, t, ts: Date.now() }); }
+  function olvidarMesa() { mesa = null; tokenMesa = ""; guardar("sb_mesa", null); }
+  const puedePedir = () => modo === "delivery" || (datos.recibir && Boolean(mesa));
+  const motivoBloqueo = () => (!datos.recibir && modo === "mesa" ? "Por ahora no tomamos pedidos desde el celular. Pedile al mozo 🙂" : "Escaneá el QR de tu mesa para pedir (o elegí Delivery).");
+
   function pintarMesa() {
     const delivery = modo === "delivery";
-    $("mesaTxt").textContent = delivery ? "Delivery a domicilio" : mesa ? `Mesa ${mesa}` : "Elegí tu mesa";
+    $("mesaTxt").textContent = delivery ? "Delivery a domicilio" : mesa ? `Mesa ${mesa}` : "Escaneá el QR de tu mesa";
     $("btnMesa").classList.toggle("sin", !delivery && !mesa);
-    $("btnMesa").querySelector(".chev").toggleAttribute("hidden", delivery); // (en SVG no existe la propiedad .hidden)
     $("ubicDerTxt").textContent = delivery && datos.tiempo ? datos.tiempo : "Ver horarios";
-    $("opMesaTxt").textContent = mesa ? `Mesa ${mesa} · cambiar` : "Elegir mesa";
+    const av = $("avisoQr");
+    av.hidden = delivery || Boolean(mesa);
+    av.textContent = qrViejo ? "Ese código QR ya no sirve. Pedile al mozo que te indique el QR actual de tu mesa 🙂" : "Para pedir en tu mesa, escaneá el código QR que está en ella. También podés pedir por Delivery.";
   }
 
   function toast(txt) {
@@ -54,6 +63,7 @@
   const totalCarrito = () => Object.entries(carrito).reduce((s, [id, l]) => s + datos.productos[id].precio * l.cant, 0);
 
   function cambiar(id, delta) {
+    if (delta > 0 && !puedePedir()) return toast(motivoBloqueo());
     const l = carrito[id] || { cant: 0, nota: "" };
     l.cant = Math.max(0, Math.min(20, l.cant + delta));
     if (l.cant === 0) delete carrito[id]; else carrito[id] = l;
@@ -66,7 +76,7 @@
     const cant = carrito[id]?.cant || 0;
     c.innerHTML = cant
       ? `<div class="stepper"><button data-menos="${id}" aria-label="Quitar uno">−</button><span>${cant}</span><button data-mas="${id}" aria-label="Agregar uno">+</button></div>`
-      : `<button class="btn-mas" data-mas="${id}" aria-label="Agregar al pedido" ${datos.recibir ? "" : "disabled"}>+</button>`;
+      : `<button class="btn-mas${puedePedir() ? "" : " bloq"}" data-mas="${id}" aria-label="Agregar al pedido">+</button>`;
   }
   function pintarBarra() {
     const n = cantidadTotal();
@@ -79,7 +89,7 @@
   function pintarCarrito() {
     const delivery = modo === "delivery";
     $("paraMesa").hidden = delivery; $("datosDelivery").hidden = !delivery;
-    $("carritoMesa").textContent = mesa ? `mesa ${mesa}` : "mesa (sin elegir)";
+    $("carritoMesa").textContent = mesa ? `mesa ${mesa}` : "mesa (escaneá el QR)";
     $("notaCarrito").textContent = delivery ? "Te escribimos por WhatsApp para confirmar tu pedido. El pago se hace al recibirlo." : "Si después querés algo más, pedilo de nuevo o avisale al mozo. Pagás al final, en la mesa.";
     $("totalEtq").textContent = delivery ? "Total a pagar" : "Total de este pedido";
     $("carritoDesglose").hidden = !(delivery && envio() > 0);
@@ -93,8 +103,8 @@
         <div class="fila-nota"><input data-nota="${id}" maxlength="200" placeholder="Aclaración (ej: sin cebolla)" value="${esc(l.nota)}"></div></div>`;
     }).join("") : '<p class="dlg-sub">Todavía no agregaste nada.</p>';
     $("carritoTotal").textContent = pesos(totalCarrito() + envio());
-    $("btnEnviar").disabled = !ids.length;
-    $("btnEnviar").textContent = delivery ? "Enviar pedido de delivery" : mesa ? `Enviar pedido a Mesa ${mesa}` : "Elegir mesa y enviar";
+    $("btnEnviar").disabled = !ids.length || (!delivery && !mesa);
+    $("btnEnviar").textContent = delivery ? "Enviar pedido de delivery" : mesa ? `Enviar pedido a Mesa ${mesa}` : "Escaneá el QR de tu mesa para pedir";
   }
 
   document.addEventListener("click", (e) => {
@@ -110,29 +120,17 @@
     if (id && carrito[id]) { carrito[id].nota = e.target.value; guardar("sb_carrito", carrito); }
   });
 
-  // ---- Mesa ----
-  function abrirMesas(despues) {
-    $("gridMesas").innerHTML = Array.from({ length: datos.mesas }, (_, i) => `<button class="mesa-btn${mesa === i + 1 ? " sel" : ""}" data-mesa="${i + 1}">${i + 1}</button>`).join("");
-    abrirMesas.despues = despues; $("dlgMesa").showModal();
-  }
-  $("gridMesas").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-mesa]"); if (!b) return;
-    setMesa(Number(b.dataset.mesa)); $("dlgMesa").close();
-    const fn = abrirMesas.despues; abrirMesas.despues = null; if (fn) fn();
-  });
-  $("cambiarMesa").onclick = () => abrirMesas(pintarCarrito);
-
   // ---- Enviar ----
   function abrirCarrito() { $("carritoError").hidden = true; pintarCarrito(); if (!$("dlgCarrito").open) $("dlgCarrito").showModal(); }
   $("barraCarrito").onclick = abrirCarrito;
   $("btnCarritoTop").onclick = abrirCarrito;
   $("btnEnviar").onclick = async () => {
     if (modo === "delivery") return enviarDelivery();
-    if (!mesa) return abrirMesas(() => $("btnEnviar").click());
+    if (!mesa) return toast(motivoBloqueo());
     const btn = $("btnEnviar"); $("carritoError").hidden = true; btn.disabled = true; btn.textContent = "Enviando…";
     try {
       const items = Object.entries(carrito).map(([id, l]) => ({ productoId: Number(id), cantidad: l.cant, nota: l.nota }));
-      const r = await post("/api/pedidos", { mesa, items });
+      const r = await post("/api/pedidos", { mesa, token: tokenMesa, items });
       carrito = {}; guardar("sb_carrito", carrito);
       Object.keys(datos.productos).forEach(pintarControl); pintarBarra();
       $("dlgCarrito").close();
@@ -141,6 +139,7 @@
       $("dlgListo").showModal();
     } catch (err) {
       $("carritoError").textContent = err.message; $("carritoError").hidden = false;
+      if (/QR/.test(err.message)) { olvidarMesa(); pintarMesa(); Object.keys(datos.productos).forEach(pintarControl); } // el código ya no vale
     } finally { pintarCarrito(); }
   };
 
@@ -182,13 +181,13 @@
 
   // ---- Mi cuenta ----
   async function abrirCuenta() {
-    if (!mesa) return abrirMesas(abrirCuenta);
+    if (!mesa) return toast(motivoBloqueo());
     $("cuentaMesa").textContent = `Mesa ${mesa}`;
     $("cuentaLista").innerHTML = '<p class="dlg-sub">Cargando…</p>';
     $("cuentaMsg").hidden = true; $("cuentaBotones").hidden = true; $("cuentaTotalFila").hidden = true;
     if (!$("dlgCuenta").open) $("dlgCuenta").showModal();
     try {
-      const { cuenta } = await api(`/api/mesas/${mesa}/cuenta`);
+      const { cuenta } = await api(`/api/mesas/${mesa}/cuenta?t=${encodeURIComponent(tokenMesa)}`);
       if (!cuenta) { $("cuentaLista").innerHTML = '<p class="dlg-sub">Todavía no pediste nada en esta mesa.</p>'; return; }
       $("cuentaLista").innerHTML = cuenta.resumen.map((r) => `<div class="fila"><div><div class="fila-nombre">${r.cantidad} × ${esc(r.nombre)}</div>${r.nota ? `<small>${esc(r.nota)}</small>` : ""}</div><div class="fila-precio">${pesos(r.subtotal)}</div></div>`).join("");
       $("cuentaTotal").textContent = pesos(cuenta.total);
@@ -198,7 +197,7 @@
   }
   function mostrarMsg(t, error) { const el = $("cuentaMsg"); el.textContent = t; el.hidden = false; el.style.color = error ? "" : "#3f6a3a"; }
   async function avisar(tipo) {
-    try { await post(`/api/mesas/${mesa}/aviso`, { tipo }); mostrarMsg("¡Listo! Ya le avisamos al mozo, enseguida vamos."); }
+    try { await post(`/api/mesas/${mesa}/aviso`, { tipo, token: tokenMesa }); mostrarMsg("¡Listo! Ya le avisamos al mozo, enseguida vamos."); }
     catch (err) { mostrarMsg(err.message, true); }
   }
   $("listoCuenta").onclick = () => { $("dlgListo").close(); abrirCuenta(); };
@@ -260,12 +259,12 @@
     document.querySelectorAll(".modo").forEach((b) => b.classList.toggle("activa", b.dataset.modo === modo));
     $("opBorrar").hidden = modo !== "delivery";
     pintarMesa();
+    Object.keys(datos.productos).forEach(pintarControl); // los "+" se habilitan o bloquean según el modo
     if ($("dlgCarrito").open) pintarCarrito();
   }
   document.querySelectorAll(".modo").forEach((b) => (b.onclick = () => {
     modo = b.dataset.modo; aplicarModo();
     if ($("dlgOpciones").open) $("dlgOpciones").close();
-    if (modo === "mesa" && !mesa) abrirMesas();
   }));
 
   // ---- Barra inferior: Inicio · Pedidos · Cuenta ----
@@ -275,9 +274,7 @@
   tabs.pedidos.onclick = () => { marcarTab("pedidos"); modo === "delivery" ? abrirCarrito() : abrirCuenta(); };
   tabs.cuenta.onclick = () => { marcarTab("cuenta"); $("dlgOpciones").showModal(); };
   document.querySelectorAll("dialog").forEach((d) => d.addEventListener("close", () => marcarTab("inicio")));
-  $("btnMesa").onclick = () => (modo === "delivery" ? $("dlgOpciones").showModal() : abrirMesas());
   $("ubicDer").onclick = () => $("dlgHorarios").showModal();
-  $("opMesa").onclick = () => { $("dlgOpciones").close(); abrirMesas(); };
   $("opHorarios").onclick = () => { $("dlgOpciones").close(); $("dlgHorarios").showModal(); };
   $("opBorrar").onclick = () => {
     Object.keys(campos).forEach((k) => { delete cliente[k]; $(campos[k]).value = ""; });
@@ -287,5 +284,4 @@
   // ---- Inicio ----
   Object.keys(datos.productos).forEach(pintarControl);
   pintarBarra(); pintarPago(); aplicarModo(); filtrar();
-  if (!mesa && modo === "mesa") setTimeout(() => abrirMesas(), 400);
 })();
