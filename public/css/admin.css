@@ -94,6 +94,9 @@ label.campo small { font-weight: 400; color: var(--suave); font-size: .85rem; }
 .btn-principal:hover { background: #46301f; }
 .btn-acento { background: var(--tan); border-color: var(--tan); color: #fff; }
 .btn-peligro { border-color: var(--alerta); color: var(--alerta); background: transparent; }
+.btn-peligro.lleno { background: var(--alerta); color: #fff; }
+.btn-peligro.lleno:hover { background: #9c3622; }
+.confirmar-txt { font-size: 1.12rem; line-height: 1.45; }
 .btn-chico { padding: 6px 11px; font-size: .8rem; }
 .btn:disabled { opacity: .45; }
 .acciones { display: flex; flex-wrap: wrap; gap: 8px; }

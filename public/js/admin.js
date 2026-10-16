@@ -187,7 +187,8 @@
           <div class="acciones">${p.sinVer || p.aviso ? `<button class="btn btn-chico" data-a="visto" data-id="${p.id}">✓ Visto</button>` : ""}
             <button class="btn btn-chico" data-a="imprimir-pedido" data-id="${p.id}">🖨️ Imprimir</button>
             <button class="btn btn-chico" data-a="editar" data-id="${p.id}">Editar</button>
-            <button class="btn btn-principal btn-chico" data-a="cobrar" data-id="${p.id}">Cobrar y cerrar</button></div></div>
+            <button class="btn btn-principal btn-chico" data-a="cobrar" data-id="${p.id}">Cobrar y cerrar</button>
+            <button class="btn btn-peligro btn-chico" data-a="cancelar" data-id="${p.id}">Cancelar pedido</button></div></div>
       </div></article>`;
   }
   function tarjetaDelivery(p) {
@@ -207,7 +208,8 @@
             <button class="btn btn-chico" data-a="imprimir-pedido" data-id="${p.id}">🖨️ Imprimir</button>
             <a class="btn btn-chico" href="https://wa.me/${waNumero(p.cliente_telefono)}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a>
             <button class="btn btn-chico" data-a="editar" data-id="${p.id}">Editar</button>
-            <button class="btn btn-principal btn-chico" data-a="cobrar" data-id="${p.id}">Despachar</button></div></div>
+            <button class="btn btn-principal btn-chico" data-a="cobrar" data-id="${p.id}">Despachar</button>
+            <button class="btn btn-peligro btn-chico" data-a="cancelar" data-id="${p.id}">Cancelar pedido</button></div></div>
       </div></article>`;
   }
 
@@ -226,6 +228,20 @@
           <button class="btn btn-principal" data-a="nueva-mesa">＋ Nueva mesa</button></div></div>
       <div class="titulo-vista" style="margin-bottom:16px"><div class="seg">${[["todos", "Todos"], ["mesa", `Mesas (${mesas.length})`], ["delivery", `Delivery (${deliverys.length})`]].map(([k, t]) => `<button data-a="filtro" data-f="${k}" class="${f === k ? "sel" : ""}">${t}</button>`).join("")}</div></div>
       <div class="cols ${f === "todos" ? "" : "una"}">${f !== "delivery" ? colMesas : ""}${f !== "mesa" ? colDel : ""}</div>`;
+  }
+
+  // ----- Cancelar un pedido (siempre pide confirmación) -----
+  function pedirCancelar(p) {
+    const quien = p.tipo === "delivery" ? `el delivery #${p.id} de ${esc(p.cliente_nombre)}` : `el pedido de la Mesa ${p.mesa}`;
+    const productos = (p.items || []).reduce((n, i) => n + i.cantidad, 0);
+    $("dlgConfirmar").innerHTML = `
+      <div class="dlg-cab"><h2>¿Cancelar el pedido?</h2><button class="cerrar" data-a="no-cancelar" aria-label="Cerrar">✕</button></div>
+      <p class="confirmar-txt">Vas a cancelar <b>${quien}</b> (${productos} producto${productos === 1 ? "" : "s"} · <b>${pesos(p.total)}</b>).</p>
+      <p class="suave" style="margin:8px 0 18px">No se cobra y <b>no queda registrado como venta</b>. Esto no se puede deshacer.</p>
+      <div class="acciones" style="justify-content:flex-end">
+        <button class="btn" data-a="no-cancelar">No, volver</button>
+        <button class="btn btn-peligro lleno" data-a="si-cancelar" data-id="${p.id}">Sí, cancelar pedido</button></div>`;
+    $("dlgConfirmar").showModal();
   }
 
   // ----- Editor de un pedido (cambiar cantidades, agregar, cancelar) -----
@@ -466,23 +482,23 @@
         <label class="campo"><span>Datos para transferencias <small>(se muestran al cliente que elige pagar por transferencia)</small></span><textarea name="transferencia_info" rows="3" maxlength="300" placeholder="Alias: street.burger&#10;CBU: 0000000000000000000000&#10;Titular: ...">${esc(a.transferencia_info)}</textarea></label>
         <button class="btn btn-principal">Guardar</button></form></div>
       <div class="tarjeta"><h3>QR de las mesas</h3>
-        <p class="suave" style="margin-bottom:12px">Pegá el QR en cada mesa: el cliente lo escanea y entra al menú con su mesa elegida.${/localhost|127\.0\.0\.1/.test(location.hostname) ? ' <b style="color:var(--alerta)">Ahora estás en localhost: cuando publiques el sitio, volvé a esta pantalla desde tu dirección real para generar los QR correctos.</b>' : ""}</p>
+        <p class="suave" style="margin-bottom:12px">Pegá el QR en cada mesa. <b>La mesa se fija solo escaneando su QR</b> (el cliente no puede elegirla a mano): cada código lleva una clave secreta, así nadie puede pedir en una mesa en la que no está.${/localhost|127\.0\.0\.1/.test(location.hostname) ? ' <b style="color:var(--alerta)">Ahora estás en localhost: cuando publiques el sitio, volvé a esta pantalla desde tu dirección real para generar los QR correctos.</b>' : ""}</p>
         <div class="acciones" style="margin-bottom:12px"><button class="btn" data-a="imprimir-qr">🖨️ Imprimir QR de todas las mesas</button></div>
         <div class="qr-grid" id="qrGrid"></div></div>`;
     $("formAj").onsubmit = seguro(async (e) => {
       e.preventDefault(); const fd = new FormData(e.target);
       estado.ajustes = (await api("PUT", "/admin/api/ajustes", { nombre_local: fd.get("nombre_local"), cantidad_mesas: fd.get("cantidad_mesas"), recibir_pedidos: fd.has("recibir_pedidos"), recibir_delivery: fd.has("recibir_delivery"), costo_envio: fd.get("costo_envio") || 0, tiempo_estimado: fd.get("tiempo_estimado"), direccion_local: fd.get("direccion_local"), transferencia_info: fd.get("transferencia_info") })).ajustes;
       $("nombreLocal").textContent = estado.ajustes.nombre_local;
-      toast("Ajustes guardados"); pintarQR();
+      toast("Ajustes guardados"); await pintarQR();
     });
-    pintarQR();
+    await pintarQR();
   }
   function qrSvg(url) {
     if (typeof qrcode === "undefined") return `<small>${esc(url)}</small>`;
     const q = qrcode(0, "M"); q.addData(url); q.make(); return q.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
   }
-  const qrHtml = () => Array.from({ length: estado.ajustes.cantidad_mesas }, (_, i) => `<div class="qr-item"><b>Mesa ${i + 1}</b>${qrSvg(`${location.origin}/?mesa=${i + 1}`)}</div>`).join("");
-  const pintarQR = () => { $("qrGrid").innerHTML = qrHtml(); };
+  const qrHtml = () => (estado.qr || []).map(({ mesa, t }) => `<div class="qr-item"><b>Mesa ${mesa}</b>${qrSvg(`${location.origin}/?mesa=${mesa}&t=${t}`)}</div>`).join("");
+  async function pintarQR() { estado.qr = (await api("GET", "/admin/api/qr")).mesas; $("qrGrid").innerHTML = qrHtml(); }
 
   // ---------- Acciones (clicks) ----------
   const refrescar = async () => { await cargarActivos(); };
@@ -534,10 +550,16 @@
         mostrarTicket(pedido, true); refrescar();
       } finally { el.disabled = false; }
     },
-    "cancelar-pedido": async () => {
-      if (!confirm("¿Cancelar este pedido? No se cobra ni queda como venta.")) return;
-      await api("POST", `/admin/api/pedidos/${estado.pedido.id}/cancelar`);
-      $("dlgPedido").close(); estado.editandoId = null; toast("Pedido cancelado"); refrescar();
+    "cancelar-pedido": () => pedirCancelar(estado.pedido), // desde el editor
+    cancelar: (d) => pedirCancelar(estado.pedidos.find((p) => p.id === Number(d.id))), // desde la tarjeta
+    "no-cancelar": () => $("dlgConfirmar").close(),
+    "si-cancelar": async (d, el) => {
+      el.disabled = true;
+      try {
+        await api("POST", `/admin/api/pedidos/${d.id}/cancelar`);
+        $("dlgConfirmar").close(); if ($("dlgPedido").open) $("dlgPedido").close(); estado.editandoId = null;
+        toast("Pedido cancelado"); refrescar();
+      } catch (e) { el.disabled = false; throw e; }
     },
     "imprimir-ticket": () => imprimir(ticketHtml(estado.ticket)),
     "cerrar-ticket": () => $("dlgTicket").close(),
@@ -555,7 +577,7 @@
       await api("DELETE", `/admin/api/productos/${d.id}`); $("dlgForm").close(); toast("Producto eliminado"); vistaMenu();
     },
     "quitar-foto": () => { $("imgUrl").value = ""; $("prev").hidden = true; },
-    "imprimir-qr": () => imprimir(`<h2 style="font-family:sans-serif;text-align:center">${esc(estado.ajustes.nombre_local)} · Escaneá y pedí desde tu mesa</h2><div class="qr-grid">${qrHtml()}</div>`),
+    "imprimir-qr": async () => { if (!estado.qr) await pintarQR(); imprimir(`<h2 style="font-family:sans-serif;text-align:center">${esc(estado.ajustes.nombre_local)} · Escaneá y pedí desde tu mesa</h2><div class="qr-grid">${qrHtml()}</div>`); },
   };
   document.addEventListener("click", (e) => {
     const el = e.target.closest("[data-a]"); if (!el) return;

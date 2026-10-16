@@ -49,6 +49,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 .modo { flex: 1; border: 0; background: transparent; padding: 10px 8px; border-radius: 999px; font-weight: 700; font-size: .9rem; color: var(--gris); }
 .modo.activa { background: var(--amarillo); color: var(--tinta); box-shadow: 0 4px 10px rgba(246,183,44,.4); }
 .ubic { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 2px 14px; }
+.ubic-izq { display: inline-flex; align-items: center; gap: 8px; font-size: .92rem; font-weight: 500; min-width: 0; }
 .ubic button { display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 0; padding: 4px 0; font-size: .92rem; font-weight: 500; min-width: 0; }
 .ubic svg { width: 22px; height: 22px; flex: none; }
 .ubic .chev { width: 16px; height: 16px; }
@@ -95,7 +96,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 .precio { font-weight: 800; font-size: 1.05rem; white-space: nowrap; }
 .btn-mas { width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--tinta); color: #fff; font-size: 1.6rem; line-height: 1; display: grid; place-items: center; padding: 0 0 3px; box-shadow: 0 4px 10px rgba(0,0,0,.25); }
 .btn-mas:active { transform: scale(.94); }
-.btn-mas:disabled { background: #cfcfcf; box-shadow: none; }
+.btn-mas.bloq { background: #cfcfcf; box-shadow: none; }
 .stepper { display: inline-flex; align-items: center; background: var(--tinta); border-radius: 999px; color: #fff; }
 .stepper button { width: 36px; height: 40px; border: 0; background: transparent; color: inherit; font-size: 1.25rem; font-weight: 700; }
 .stepper span { min-width: 20px; text-align: center; font-weight: 700; font-size: .95rem; }
