@@ -5,7 +5,8 @@
   "scripts": {
     "start": "nodemon src/app.js",
     "prod": "node src/app.js",
-    "db:instalar": "node database/instalar.js"
+    "db:instalar": "node database/instalar.js",
+    "db:menu": "node database/cargar-menu.js"
   },
   "keywords": [],
   "author": "",

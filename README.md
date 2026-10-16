@@ -32,7 +32,7 @@ npm start                   # http://localhost:3000   ·   panel: /admin
 - Si ya tenías la base de una versión anterior, **no hace falta reinstalar**: al arrancar el servidor agrega solo las columnas nuevas (delivery) sin borrar nada.
 - `npm run db:instalar -- --reset` borra todo y empieza de cero.
 - En producción usá `npm run prod` (sin nodemon), HTTPS, y `COOKIE_SECURE=true` (+ `TRUST_PROXY=true` si hay proxy).
-- Los precios del menú de ejemplo son inventados: cambialos desde **Admin → Menú**.
+- La carta real (nombres, descripciones y precios) está en `database/menu-real.js`, transcripta de las fotos de `docs/carta-original/`. `npm run db:instalar` la carga la primera vez. Para **reemplazar el menú de la base por esa carta** (y borrar los datos de prueba) usá `npm run db:menu -- --limpiar-pedidos` (sin `--limpiar-pedidos` solo cambia el menú). Después los precios se editan desde **Admin → Menú**.
 
 ## Estructura
 
