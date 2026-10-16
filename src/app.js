@@ -8,6 +8,15 @@ const session = require("express-session");
 const db = require("./model/database/models");
 const indexRouter = require("./routes/index.Routes");
 const adminRouter = require("./routes/admin.Routes");
+const { ADMIN_PATH, problemasAdminPath, sugerenciaAdminPath } = require("./helpers/adminPath");
+const limitador = require("./middlewares/limitador");
+
+// La dirección secreta del panel se valida SIEMPRE (en producción, además, es obligatoria y tiene que ser difícil de adivinar)
+const erroresPanel = problemasAdminPath(process.env.NODE_ENV === "production");
+if (erroresPanel.length) {
+  console.error("❌ Problema con la dirección del panel (ADMIN_PATH en el archivo .env):\n   - " + erroresPanel.join("\n   - ") + `\n   Por ejemplo: ADMIN_PATH=${sugerenciaAdminPath()}`);
+  process.exit(1);
+}
 
 const app = express();
 const puerto = process.env.PORT || 3000;
@@ -54,7 +63,7 @@ app.use(
     secret: secreto,
     resave: false,
     saveUninitialized: false,
-    cookie: { httpOnly: true, sameSite: "strict", secure: process.env.COOKIE_SECURE === "true", maxAge: 12 * 3600e3 },
+    cookie: { path: ADMIN_PATH, httpOnly: true, sameSite: "strict", secure: process.env.COOKIE_SECURE === "true", maxAge: 12 * 3600e3 },
   }),
 );
 
@@ -67,11 +76,17 @@ app.get("/salud", async (req, res) => {
   catch { res.status(503).json({ ok: false }); }
 });
 
-app.use("/admin", adminRouter);
+app.use(ADMIN_PATH, adminRouter);
 app.use("/", indexRouter);
 
-app.use((req, res) => {
-  if (req.path.startsWith("/api/") || req.path.startsWith("/admin/api/")) return res.status(404).json({ ok: false, mensaje: "No encontrado" });
+// Quien anda probando direcciones (buscando el panel) se queda sin respuestas un rato
+const frenoExploradores = limitador({ max: 30, ventanaMs: 10 * 60_000, mensaje: "Demasiados intentos. Esperá unos minutos." });
+const esApiAdmin = (req) => req.originalUrl.startsWith(`${ADMIN_PATH}/api/`);
+
+// (favicon y similares no cuentan: en un local todos los clientes comparten la misma IP del wifi)
+const inofensivo = /^\/(favicon\.ico|apple-touch-icon.*|robots\.txt)$/;
+app.use((req, res, next) => (inofensivo.test(req.path) ? next() : frenoExploradores(req, res, next)), (req, res) => {
+  if (req.path.startsWith("/api/") || esApiAdmin(req)) return res.status(404).json({ ok: false, mensaje: "No encontrado" });
   res.status(404).send("<h1>Página no encontrada</h1><p><a href='/'>Ir al menú</a></p>");
 });
 
@@ -86,7 +101,7 @@ app.use((err, req, res, next) => {
     console.error("❌", err);
     mensaje = "Error del servidor, probá de nuevo";
   }
-  if (req.path.startsWith("/api/") || req.path.startsWith("/admin/api/") || req.accepts(["html", "json"]) === "json") {
+  if (req.path.startsWith("/api/") || esApiAdmin(req) || req.accepts(["html", "json"]) === "json") {
     return res.status(status).json({ ok: false, mensaje });
   }
   res.status(status).send(`<h1>Algo salió mal</h1><p>${status >= 500 ? "Probá de nuevo en unos minutos." : mensaje}</p>`);
@@ -99,7 +114,7 @@ db.sequelize
   .then(() => {
     console.log(`✅ Conectado a la base de datos "${db.sequelize.config.database}"`);
     if (!process.env.ADMIN_PASSWORD && !process.env.ADMIN_PASSWORD_HASH) console.warn("⚠️  Definí ADMIN_PASSWORD en el .env para poder entrar a /admin.");
-    app.listen(puerto, () => console.log(`🚀 Servidor corriendo en http://localhost:${puerto}  (panel: /admin)`));
+    app.listen(puerto, () => console.log(`🚀 Servidor corriendo en http://localhost:${puerto}  (panel: ${ADMIN_PATH})`));
   })
   .catch((error) => {
     console.error("❌ No se pudo conectar con la base de datos:", error.message);

@@ -10,9 +10,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/admin.css">
+  <link rel="stylesheet" href="<%= base %>/assets/admin.css">
 </head>
-<body>
+<body data-base="<%= base %>">
   <div class="app">
     <aside class="lateral">
       <div class="lat-marca">
@@ -35,7 +35,7 @@
       <a class="lat-link" href="/" target="_blank" rel="noopener">Ver menú de clientes <span>↗</span></a>
       <div class="lat-usuario">
         <span class="avatar">A</span><div><b>Admin</b><small>Sesión iniciada</small></div>
-        <form method="post" action="/admin/logout"><button type="submit" title="Salir" aria-label="Salir">⎋</button></form>
+        <form method="post" action="<%= base %>/logout"><button type="submit" title="Salir" aria-label="Salir">⎋</button></form>
       </div>
     </aside>
 
@@ -61,6 +61,6 @@
   <div class="toast" id="toast" role="status" hidden></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
-  <script src="/js/admin.js" defer></script>
+  <script src="<%= base %>/assets/admin.js" defer></script>
 </body>
 </html>

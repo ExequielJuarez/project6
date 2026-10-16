@@ -96,6 +96,13 @@ nano .env
 Completá estas líneas (guardar en nano: `Ctrl+O`, Enter, `Ctrl+X`):
 
 - `DB_PASSWORD=` → la `CLAVE_LARGA_DE_LA_BASE` del paso 4.
+- `ADMIN_PATH=` → la **dirección secreta del panel**. Generala con este comando y pegá el resultado (por ejemplo `/gestion-9d4f7a2c1b60`):
+
+  ```bash
+  node -e "console.log('/gestion-' + require('crypto').randomBytes(8).toString('hex'))"
+  ```
+
+  El panel va a estar en `https://tudominio.com/gestion-9d4f7a2c1b60` (la tuya será otra) y **`/admin` deja de existir**. Anotala en un lugar seguro: es la "puerta" de tu panel.
 - `ADMIN_PASSWORD=` → **la contraseña con la que vas a entrar a /admin** (larga, tuya, no la compartas).
 - `SESSION_SECRET=` → generá uno con este comando y pegá el resultado:
 
@@ -105,7 +112,7 @@ Completá estas líneas (guardar en nano: `Ctrl+O`, Enter, `Ctrl+X`):
 
 - `QR_SECRET=` → otro texto aleatorio igual (generalo con el mismo comando). Es la clave de los **códigos QR de las mesas**: una vez impresos los QR **no la cambies**, o dejan de funcionar y hay que imprimirlos de nuevo.
 
-El servidor **se niega a arrancar** si falta `SESSION_SECRET` o si la contraseña es débil/de ejemplo. Es a propósito.
+El servidor **se niega a arrancar** si falta `SESSION_SECRET` o `ADMIN_PATH`, si la dirección es fácil de adivinar (`/admin`, `/panel`...) o si la contraseña es débil/de ejemplo. Es a propósito.
 
 ## 7. Crear las tablas
 
@@ -150,7 +157,7 @@ Aceptá las preguntas y elegí redirigir HTTP a HTTPS. Se renueva solo.
 ## 11. Probar
 
 1. Abrí `https://tudominio.com` → tiene que verse el menú.
-2. Abrí `https://tudominio.com/admin` → entrá con tu `ADMIN_PASSWORD` → te pide **abrir la caja**.
+2. Abrí `https://tudominio.com/TU-DIRECCIÓN-SECRETA` (la de `ADMIN_PATH`) → entrá con tu `ADMIN_PASSWORD` → te pide **abrir la caja**.
 3. Hacé un pedido de prueba desde el celular y mirá que llegue al panel con sonido.
 4. En el panel → **Ajustes** cargá: cantidad de mesas, datos de transferencia, costo de envío y dirección del local.
    Después, en la misma pantalla, imprimí los **QR de las mesas** (ahora sí salen con tu dominio real).
@@ -208,8 +215,9 @@ gunzip -c ~/backups-street-burger/db_FECHA.sql.gz | mysql -u street_burger -p st
 | Síntoma | Qué mirar |
 |---------|-----------|
 | **502 Bad Gateway** | El sitio no está corriendo: `pm2 logs street-burger` (suele ser un dato mal puesto en `.env`) y `pm2 restart street-burger`. |
-| **No me deja entrar a /admin** (vuelve al login sin error) | Entrá por **https://**. Con `COOKIE_SECURE=true` el navegador no guarda la sesión por http. Si todavía no tenés HTTPS, ponelo en `false` **temporalmente**. |
-| "Demasiados intentos" | 8 contraseñas incorrectas seguidas bloquean 15 minutos. Esperá o `pm2 restart street-burger`. |
+| **No me deja entrar a /admin** (vuelve al login sin error) | Verificá que entrás por la dirección secreta (`ADMIN_PATH`) y por **https://**. Con `COOKIE_SECURE=true` el navegador no guarda la sesión por http. Si todavía no tenés HTTPS, ponelo en `false` **temporalmente**. |
+| "Demasiados intentos" | 8 contraseñas incorrectas seguidas bloquean 15 minutos, y probar muchas direcciones inexistentes bloquea 10 minutos a esa conexión. Esperá o `pm2 restart street-burger`. |
+| "Página no encontrada" al abrir `/admin` | Es lo esperado: el panel ya no está en `/admin`, está en tu `ADMIN_PATH`. |
 | "No se pudo conectar con la base de datos" | Revisá `DB_USER`, `DB_PASSWORD`, `DB_NAME` en `.env` y que MariaDB esté prendida: `systemctl status mariadb`. |
 | No se suben las fotos | `chown -R root:root /var/www/street-burger/public/uploads` y que `client_max_body_size 8m;` esté en nginx. |
 | No suena el panel | Los navegadores piden un toque en la página para activar el sonido: tocá el cartel amarillo de arriba. |

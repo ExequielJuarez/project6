@@ -1,4 +1,4 @@
-// Panel de administración. Todo lo de /admin/api exige sesión de administrador.
+// Panel de administración (montado en la dirección secreta ADMIN_PATH). Todo lo de /api exige sesión de administrador.
 const express = require("express");
 const crypto = require("crypto");
 const path = require("path");
@@ -16,6 +16,9 @@ const { ErrorNegocio } = require("../helpers/errores");
 const { tokenDeMesa } = require("../helpers/mesaToken");
 
 const router = express.Router();
+router.use((req, res, next) => { res.locals.base = req.baseUrl; next(); }); // dirección secreta, disponible en las vistas
+// Los archivos del panel (JS/CSS) se sirven SOLO desde la dirección secreta: no están en la carpeta pública
+router.use("/assets", express.static(path.join(__dirname, "../admin-assets")));
 const limiteLogin = limitador({ max: 8, ventanaMs: 15 * 60_000, mensaje: "Demasiados intentos. Probá de nuevo en 15 minutos.", soloFallos: true, responder: (req, res, mensaje) => res.status(429).render("admin/login", { configurada: true, error: mensaje }) });
 
 const sha = (s) => crypto.createHash("sha256").update(String(s)).digest();
@@ -43,12 +46,12 @@ router.post("/login", limiteLogin, async (req, res, next) => {
     req.session.regenerate((err) => {
       if (err) return next(err);
       req.session.admin = true;
-      res.redirect("/admin");
+      res.redirect(req.baseUrl);
     });
   } catch (e) { next(e); }
 });
 
-router.post("/logout", (req, res) => req.session.destroy(() => res.redirect("/admin")));
+router.post("/logout", (req, res) => req.session.destroy(() => res.redirect(req.baseUrl)));
 
 // ---------- API ----------
 const api = express.Router();
