@@ -126,7 +126,6 @@
     document.querySelectorAll(".vista").forEach((s) => (s.hidden = s.id !== `vista-${v}`));
     window.scrollTo(0, 0);
     seguro(vistas[v])();
-    if (v === "pedidos") setTimeout(exigirCaja, 0); // (si ya se sabe que está cerrada, lo pide enseguida)
   }
 
   // ---------- PEDIDOS EN PANTALLA ----------
@@ -140,19 +139,18 @@
     document.title = (nuevos ? `(${nuevos}) ` : "") + "Panel · Street Burger";
     if (estado.vista === "pedidos") pintarPedidos();
     if (estado.editandoId && $("dlgPedido").open) await pintarEditor();
-    exigirCaja();
   }
 
-  // ---------- Caja obligatoria ----------
-  // Para trabajar en Pedidos la caja tiene que estar abierta: si no, aparece este cuadro (sin X) hasta abrirla.
-  function exigirCaja() {
-    if (estado.vista !== "pedidos" || estado.caja !== false || $("dlgCaja").open) return;
+  // ---------- Caja ----------
+  // La caja NO bloquea la navegación: en Pedidos aparece un aviso con "Abrir caja", y si intentás cobrar sin caja se ofrece abrirla ahí mismo.
+  // Se cierra solo con la X.
+  function abrirDialogCaja(despues) {
     $("dlgCaja").innerHTML = `<form id="formCajaObl">
-      <div class="dlg-cab"><h2>Abrí la caja para empezar</h2></div>
-      <p class="suave" style="margin-bottom:14px;font-size:1rem">Para recibir y cobrar pedidos primero hay que abrir la caja del día. Poné con cuánto efectivo empezás (el cambio).</p>
+      <div class="dlg-cab"><h2>Abrir la caja</h2><button type="button" class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>
+      <p class="suave" style="margin-bottom:14px;font-size:1rem">Para cobrar o despachar pedidos hay que tener la caja abierta. Poné con cuánto efectivo empezás (el cambio).</p>
       <label class="campo"><span>Efectivo inicial ($)</span><input id="cajaMonto" name="monto" type="number" inputmode="decimal" min="0" step="any" required value="0"></label>
       <p class="error" id="cajaError" hidden></p>
-      <button class="btn btn-principal" style="width:100%;padding:14px;font-size:1rem">Abrir caja y empezar</button></form>`;
+      <button class="btn btn-principal" style="width:100%;padding:14px;font-size:1rem">Abrir caja</button></form>`;
     $("dlgCaja").showModal();
     setTimeout(() => $("cajaMonto")?.select(), 50);
     $("formCajaObl").onsubmit = async (e) => {
@@ -162,10 +160,11 @@
       } catch (err) {
         if (!/ya está abierta/i.test(err.message)) { $("cajaError").textContent = err.message; $("cajaError").hidden = false; return; }
       }
-      estado.caja = true; $("dlgCaja").close(); toast("Caja abierta. ¡Buen turno!"); cargarActivos();
+      estado.caja = true; $("dlgCaja").close(); toast("Caja abierta. ¡Buen turno!");
+      await cargarActivos();
+      if (despues) despues();
     };
   }
-
   // Renglones iguales (mismo producto y aclaración) se muestran juntos; "nuevo" si alguno todavía no se vio
   function listaItems(p) {
     const g = new Map();
@@ -227,6 +226,7 @@
           <button class="interruptor ${estado.sonido ? "on" : ""}" data-a="sonido"><i></i>Sonido</button>
           <button class="interruptor ${estado.autoImprimir ? "on" : ""}" data-a="auto-imprimir" title="Imprime la comanda sola cuando llega un pedido"><i></i>Imprimir automático</button>
           <button class="btn btn-principal" data-a="nueva-mesa">＋ Nueva mesa</button></div></div>
+      ${estado.caja === false ? `<div class="banner-caja"><div><b>💵 La caja está cerrada.</b> Podés recibir pedidos, pero para cobrar o despachar hay que abrirla.</div><button class="btn btn-principal" data-a="abrir-caja">Abrir caja</button></div>` : ""}
       <div class="titulo-vista" style="margin-bottom:16px"><div class="seg">${[["todos", "Todos"], ["mesa", `Mesas (${mesas.length})`], ["delivery", `Delivery (${deliverys.length})`]].map(([k, t]) => `<button data-a="filtro" data-f="${k}" class="${f === k ? "sel" : ""}">${t}</button>`).join("")}</div></div>
       <div class="cols ${f === "todos" ? "" : "una"}">${f !== "delivery" ? colMesas : ""}${f !== "mesa" ? colDel : ""}</div>`;
   }
@@ -430,6 +430,7 @@
   // ---------- CAJA (opcional) ----------
   async function vistaCaja() {
     const { actual, historial } = await api("GET", BASE + "/api/caja");
+    estado.caja = Boolean(actual);
     let html = `<div class="titulo-vista"><div><p class="eyebrow">Panel de administración</p><h2>Caja</h2><p>Opcional: sirve para controlar el efectivo del día. No hace falta para cobrar.</p></div></div>`;
     if (!actual) {
       html += `<div class="tarjeta"><h3>La caja está cerrada</h3><p class="suave" style="margin-bottom:12px">Abrila indicando con cuánto efectivo empezás (el cambio).</p>
@@ -482,6 +483,11 @@
         <label class="campo"><span>Dirección del local <small>(se muestra en Horarios)</small></span><input name="direccion_local" maxlength="120" placeholder="Av. San Martín 123, La Banda" value="${esc(a.direccion_local)}"></label>
         <label class="campo"><span>Datos para transferencias <small>(se muestran al cliente que elige pagar por transferencia)</small></span><textarea name="transferencia_info" rows="3" maxlength="300" placeholder="Alias: street.burger&#10;CBU: 0000000000000000000000&#10;Titular: ...">${esc(a.transferencia_info)}</textarea></label>
         <button class="btn btn-principal">Guardar</button></form></div>
+      <div class="tarjeta"><h3>Copia de seguridad</h3>
+        <p class="suave" style="margin-bottom:12px">Descargá una copia de <b>todos tus datos</b> (productos, pedidos, ventas, cajas y ajustes). Guardala en tu computadora o en la nube. <b>Contiene datos de clientes</b>: no la compartas.</p>
+        <div class="acciones"><a class="btn btn-principal" href="${BASE}/api/backup/base" download>⬇️ Descargar copia de la base de datos</a>
+          <a class="btn" href="${BASE}/api/backup/fotos" download>🖼️ Descargar fotos subidas</a></div>
+        <p class="suave" style="margin-top:12px;font-size:.9rem">Tip: descargala una vez por semana, o todos los días al cerrar la caja. Para restaurarla hace falta alguien que pueda usar la consola del servidor (la guía <code>DEPLOY.md</code> explica cómo).</p></div>
       <div class="tarjeta"><h3>QR de las mesas</h3>
         <p class="suave" style="margin-bottom:12px">Pegá el QR en cada mesa. <b>La mesa se fija solo escaneando su QR</b> (el cliente no puede elegirla a mano): cada código lleva una clave secreta, así nadie puede pedir en una mesa en la que no está.${/localhost|127\.0\.0\.1/.test(location.hostname) ? ' <b style="color:var(--alerta)">Ahora estás en localhost: cuando publiques el sitio, volvé a esta pantalla desde tu dirección real para generar los QR correctos.</b>' : ""}</p>
         <div class="acciones" style="margin-bottom:12px"><button class="btn" data-a="imprimir-qr">🖨️ Imprimir QR de todas las mesas</button></div>
@@ -539,7 +545,8 @@
       if ($("dlgPedido").open) await pintarEditor();
       refrescar();
     },
-    cobrar: (d) => { abrirCobro(d.id); },
+    "abrir-caja": () => abrirDialogCaja(),
+    cobrar: (d) => (estado.caja === false ? abrirDialogCaja(() => abrirCobro(d.id)) : abrirCobro(d.id)), // sin caja: la ofrece y sigue con el cobro
     pct: (d) => { $("cDesc").value = Math.round(estado.cobro.p.subtotal * Number(d.p)) / 100 || ""; actualizarCobro(); },
     metodo: (d) => { estado.cobro.metodo = d.m; actualizarCobro(); },
     recibido: (d) => { $("cRec").value = d.v; actualizarCobro(); },
