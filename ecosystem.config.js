@@ -4,7 +4,7 @@ module.exports = {
     {
       name: "street-burger",
       script: "src/app.js",
-      instances: 1, // dejar en 1: los avisos en vivo del panel viven en la memoria del proceso
+      exec_mode: "fork", // un solo proceso normal (los avisos en vivo del panel viven en la memoria del proceso)
       autorestart: true,
       max_memory_restart: "400M",
       env: { NODE_ENV: "production" },
