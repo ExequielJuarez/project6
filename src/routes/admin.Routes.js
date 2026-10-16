@@ -11,6 +11,8 @@ const ajustes = require("../services/ajusteService");
 const pedidos = require("../services/pedidoService");
 const caja = require("../services/cajaService");
 const reportes = require("../services/reporteService");
+const backup = require("../services/backupService");
+const { spawn } = require("child_process");
 const fechas = require("../helpers/fechas");
 const { ErrorNegocio } = require("../helpers/errores");
 const { tokenDeMesa } = require("../helpers/mesaToken");
@@ -19,6 +21,7 @@ const router = express.Router();
 router.use((req, res, next) => { res.locals.base = req.baseUrl; next(); }); // dirección secreta, disponible en las vistas
 // Los archivos del panel (JS/CSS) se sirven SOLO desde la dirección secreta: no están en la carpeta pública
 router.use("/assets", express.static(path.join(__dirname, "../admin-assets")));
+const limiteDescarga = limitador({ max: 12, ventanaMs: 60 * 60_000, mensaje: "Ya descargaste muchas copias seguido. Probá en un rato." });
 const limiteLogin = limitador({ max: 8, ventanaMs: 15 * 60_000, mensaje: "Demasiados intentos. Probá de nuevo en 15 minutos.", soloFallos: true, responder: (req, res, mensaje) => res.status(429).render("admin/login", { configurada: true, error: mensaje }) });
 
 const sha = (s) => crypto.createHash("sha256").update(String(s)).digest();
@@ -136,6 +139,24 @@ api.get("/caja", async (req, res) => res.json({ ok: true, ...(await caja.estado(
 api.post("/caja/abrir", async (req, res) => { await caja.abrir(req.body.monto); res.json({ ok: true }); });
 api.post("/caja/movimientos", async (req, res) => { await caja.movimiento(req.body); res.json({ ok: true }); });
 api.post("/caja/cerrar", async (req, res) => res.json({ ok: true, cierre: await caja.cerrar(req.body) }));
+
+// Copias de seguridad (se descargan desde Ajustes). Contienen datos de clientes: tratarlas como privadas.
+api.get("/backup/base", limiteDescarga, async (req, res) => {
+  const gz = await backup.generarGz();
+  res.set({ "Content-Type": "application/gzip", "Content-Disposition": `attachment; filename="${backup.nombreArchivo("street-burger-base", "sql.gz")}"`, "Content-Length": gz.length });
+  res.send(gz);
+});
+// Fotos subidas desde el panel (public/uploads) en un .tar.gz
+api.get("/backup/fotos", limiteDescarga, (req, res, next) => {
+  const carpeta = path.join(__dirname, "../../public/uploads");
+  const tar = spawn("tar", ["-czf", "-", "-C", carpeta, "--exclude=.gitkeep", "."]);
+  let fallo = "";
+  tar.stderr.on("data", (d) => (fallo += d));
+  tar.on("error", () => next(new ErrorNegocio("Este servidor no puede armar el archivo de fotos. Copiá la carpeta public/uploads por SFTP.", 500)));
+  res.set({ "Content-Type": "application/gzip", "Content-Disposition": `attachment; filename="${backup.nombreArchivo("street-burger-fotos", "tar.gz")}"` });
+  tar.stdout.pipe(res);
+  tar.on("close", (c) => { if (c !== 0 && !res.headersSent) next(new ErrorNegocio("No se pudo armar el archivo de fotos. " + fallo.slice(0, 100), 500)); });
+});
 
 // Ganancias
 api.get("/reportes", async (req, res) => res.json({ ok: true, ...(await reportes.reporte(req.query.grupo, req.query.clave)) }));

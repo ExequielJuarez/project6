@@ -54,6 +54,7 @@ code { background: var(--tan-claro); padding: 1px 6px; border-radius: 4px; }
 .avatar { width: 36px; height: 36px; border-radius: 50%; background: #fff; color: var(--tinta); display: grid; place-items: center; font-family: var(--f-serif); font-weight: 700; font-size: 1.1rem; flex: none; }
 .principal { padding: 26px var(--gut) 60px; min-width: 0; }
 .vista[hidden] { display: none; }
+.banner-caja { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; background: #fdf0d8; border: 1px solid var(--tan); border-radius: 6px; padding: 14px 16px; margin-bottom: 16px; font-size: 1.02rem; }
 .aviso-sonido { background: #fdf0d8; border: 1px solid var(--tan); border-radius: 6px; padding: 10px 14px; margin-bottom: 18px; font-weight: 600; font-size: .9rem; cursor: pointer; text-align: center; }
 .aviso-sonido[hidden] { display: none; }
 
@@ -89,6 +90,7 @@ label.campo small { font-weight: 400; color: var(--suave); font-size: .85rem; }
 .fila-campos > * { min-width: 0; }
 @media (max-width: 420px) { .fila-campos { grid-template-columns: 1fr; gap: 0; } }
 .btn { border: 1px solid var(--tinta); border-radius: 4px; padding: 10px 16px; font-weight: 600; background: var(--card); color: var(--tinta); font-size: .88rem; white-space: nowrap; }
+a.btn { text-decoration: none; display: inline-block; }
 .btn:hover { background: var(--tan-claro); }
 .btn-principal { background: var(--tinta); color: #fff; }
 .btn-principal:hover { background: #46301f; }

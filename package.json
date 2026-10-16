@@ -6,7 +6,8 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "db:instalar": "node database/instalar.js",
-    "db:menu": "node database/cargar-menu.js"
+    "db:menu": "node database/cargar-menu.js",
+    "db:limpiar": "node database/limpiar-datos.js"
   },
   "keywords": [],
   "author": "",
