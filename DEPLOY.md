@@ -103,6 +103,8 @@ Completá estas líneas (guardar en nano: `Ctrl+O`, Enter, `Ctrl+X`):
   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
   ```
 
+- `QR_SECRET=` → otro texto aleatorio igual (generalo con el mismo comando). Es la clave de los **códigos QR de las mesas**: una vez impresos los QR **no la cambies**, o dejan de funcionar y hay que imprimirlos de nuevo.
+
 El servidor **se niega a arrancar** si falta `SESSION_SECRET` o si la contraseña es débil/de ejemplo. Es a propósito.
 
 ## 7. Crear las tablas
@@ -152,6 +154,8 @@ Aceptá las preguntas y elegí redirigir HTTP a HTTPS. Se renueva solo.
 3. Hacé un pedido de prueba desde el celular y mirá que llegue al panel con sonido.
 4. En el panel → **Ajustes** cargá: cantidad de mesas, datos de transferencia, costo de envío y dirección del local.
    Después, en la misma pantalla, imprimí los **QR de las mesas** (ahora sí salen con tu dominio real).
+   **La mesa se fija solo escaneando el QR de esa mesa**: sin QR el cliente puede ver el menú y pedir por Delivery, pero no pedir en mesa.
+   Si imprimiste QR de pruebas antes, tirálos: los viejos (sin código) ya no sirven.
 
 ---
 
