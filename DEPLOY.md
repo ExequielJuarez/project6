@@ -111,7 +111,7 @@ El servidor **se niega a arrancar** si falta `SESSION_SECRET` o si la contraseñ
 npm run db:instalar
 ```
 
-Crea las tablas y carga un **menú de ejemplo** (con precios inventados). Después lo cambiás desde el panel → *Menú*.
+Crea las tablas y carga la **carta real** de Street Burger. Después podés cambiar precios y productos desde el panel → *Menú*.
 
 ## 8. Dejarlo prendido con PM2
 
@@ -165,6 +165,16 @@ pm2 restart street-burger
 ```
 
 La base se actualiza sola al arrancar (agrega columnas nuevas sin borrar nada).
+
+**Reemplazar el menú de la base por la carta real** (se hace una sola vez, porque borra el menú actual):
+
+```bash
+cd /var/www/street-burger
+npm run db:menu -- --si-estoy-seguro                       # solo cambia el menú
+npm run db:menu -- --limpiar-pedidos --si-estoy-seguro     # además borra pedidos, ventas y cajas de prueba
+```
+
+> `--limpiar-pedidos` borra **todos** los pedidos y ventas. Usalo únicamente antes de empezar a trabajar de verdad.
 
 ## Copias de seguridad
 
