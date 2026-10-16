@@ -3,9 +3,9 @@
   const $ = (id) => document.getElementById(id);
   const pesos = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 2 });
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const METODOS = { efectivo: "Efectivo", transferencia: "Transferencia", tarjeta: "Débito / Tarjeta" };
+  const METODOS = { efectivo: "Efectivo", transferencia: "Transferencia" };
   const ICONO_PAGO = { efectivo: "💵", transferencia: "🏦", tarjeta: "💳", mercadopago: "📱" };
-  const nombrePago = (m) => ({ ...METODOS, mercadopago: "Mercado Pago" }[m] || "-");
+  const nombrePago = (m) => ({ ...METODOS, tarjeta: "Tarjeta", mercadopago: "Mercado Pago" }[m] || "-"); // tarjeta/MP: solo ventas viejas
   const hora = (f) => new Date(f).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
   const fechaHora = (f) => new Date(f).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   const hace = (f) => { const m = Math.max(0, Math.round((Date.now() - new Date(f)) / 60000)); return m < 1 ? "recién" : m < 60 ? `hace ${m} min` : `hace ${Math.floor(m / 60)} h ${m % 60} min`; };
@@ -125,6 +125,7 @@
     document.querySelectorAll(".vista").forEach((s) => (s.hidden = s.id !== `vista-${v}`));
     window.scrollTo(0, 0);
     seguro(vistas[v])();
+    if (v === "pedidos") setTimeout(exigirCaja, 0); // (si ya se sabe que está cerrada, lo pide enseguida)
   }
 
   // ---------- PEDIDOS EN PANTALLA ----------
@@ -132,12 +133,36 @@
 
   async function cargarActivos() {
     const j = await api("GET", "/admin/api/pedidos/activos");
-    estado.pedidos = j.pedidos; estado.mesasTotal = j.mesas;
+    estado.pedidos = j.pedidos; estado.mesasTotal = j.mesas; estado.caja = j.caja;
     const nuevos = j.pedidos.filter((p) => p.sinVer || p.aviso).length;
     $("pastillaPedidos").hidden = !nuevos; $("pastillaPedidos").textContent = nuevos;
     document.title = (nuevos ? `(${nuevos}) ` : "") + "Panel · Street Burger";
     if (estado.vista === "pedidos") pintarPedidos();
     if (estado.editandoId && $("dlgPedido").open) await pintarEditor();
+    exigirCaja();
+  }
+
+  // ---------- Caja obligatoria ----------
+  // Para trabajar en Pedidos la caja tiene que estar abierta: si no, aparece este cuadro (sin X) hasta abrirla.
+  function exigirCaja() {
+    if (estado.vista !== "pedidos" || estado.caja !== false || $("dlgCaja").open) return;
+    $("dlgCaja").innerHTML = `<form id="formCajaObl">
+      <div class="dlg-cab"><h2>Abrí la caja para empezar</h2></div>
+      <p class="suave" style="margin-bottom:14px;font-size:1rem">Para recibir y cobrar pedidos primero hay que abrir la caja del día. Poné con cuánto efectivo empezás (el cambio).</p>
+      <label class="campo"><span>Efectivo inicial ($)</span><input id="cajaMonto" name="monto" type="number" inputmode="decimal" min="0" step="any" required value="0"></label>
+      <p class="error" id="cajaError" hidden></p>
+      <button class="btn btn-principal" style="width:100%;padding:14px;font-size:1rem">Abrir caja y empezar</button></form>`;
+    $("dlgCaja").showModal();
+    setTimeout(() => $("cajaMonto")?.select(), 50);
+    $("formCajaObl").onsubmit = async (e) => {
+      e.preventDefault();
+      try {
+        await api("POST", "/admin/api/caja/abrir", { monto: $("cajaMonto").value });
+      } catch (err) {
+        if (!/ya está abierta/i.test(err.message)) { $("cajaError").textContent = err.message; $("cajaError").hidden = false; return; }
+      }
+      estado.caja = true; $("dlgCaja").close(); toast("Caja abierta. ¡Buen turno!"); cargarActivos();
+    };
   }
 
   // Renglones iguales (mismo producto y aclaración) se muestran juntos; "nuevo" si alguno todavía no se vio
@@ -176,7 +201,8 @@
           <span>📍 <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}" target="_blank" rel="noopener">${esc(p.direccion)}</a></span>
           ${p.referencia ? `<span>🏠 ${esc(p.referencia)}</span>` : ""}</div>
         ${listaItems(p)}
-        <div class="ped-pie"><div class="total">${pesos(p.total)}<small>${p.envio > 0 ? `incluye envío ${pesos(p.envio)}` : ""}${vuelto !== null ? `${p.envio > 0 ? " · " : ""}abona con ${pesos(p.pago_con)} → vuelto ${pesos(vuelto)}` : ""}</small></div>
+        ${vuelto !== null || p.envio > 0 ? `<div class="pago-info">${p.envio > 0 ? `<div>🛵 Incluye envío: <b>${pesos(p.envio)}</b></div>` : ""}${vuelto !== null ? `<div>💵 Abona con: <b>${pesos(p.pago_con)}</b></div><div class="vuelto-grande">Vuelto a llevar: <b>${pesos(vuelto)}</b></div>` : ""}</div>` : ""}
+        <div class="ped-pie"><div class="total">${pesos(p.total)}</div>
           <div class="acciones">${p.sinVer ? `<button class="btn btn-chico" data-a="visto" data-id="${p.id}">✓ Visto</button>` : ""}
             <button class="btn btn-chico" data-a="imprimir-pedido" data-id="${p.id}">🖨️ Imprimir</button>
             <a class="btn btn-chico" href="https://wa.me/${waNumero(p.cliente_telefono)}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a>
@@ -399,7 +425,7 @@
           <div class="kpi"><small>Ventas del turno</small><strong>${pesos(actual.totalVentas)}</strong><em>${actual.pedidos} venta(s)</em></div>
           <div class="kpi"><small>Efectivo inicial</small><strong>${pesos(t.monto_inicial)}</strong></div>
           <div class="kpi"><small>Ingresos / Egresos</small><strong>${pesos(actual.ingresos)} / ${pesos(actual.egresos)}</strong></div></div>
-        <div class="dos-col"><div class="tarjeta"><h3>Ventas por método</h3>${["efectivo", "transferencia", "tarjeta", "mercadopago"].filter((k) => k !== "mercadopago" || actual.ventas[k]).map((k) => `<div class="metodo-fila"><span>${nombrePago(k)}</span><b>${pesos(actual.ventas[k])}</b></div>`).join("")}</div>
+        <div class="dos-col"><div class="tarjeta"><h3>Ventas por método</h3>${["efectivo", "transferencia", "tarjeta", "mercadopago"].filter((k) => ["efectivo", "transferencia"].includes(k) || actual.ventas[k]).map((k) => `<div class="metodo-fila"><span>${nombrePago(k)}</span><b>${pesos(actual.ventas[k])}</b></div>`).join("")}</div>
         <div class="tarjeta"><h3>Registrar movimiento</h3><form id="formMov">
           <div class="fila-campos"><label class="campo"><span>Tipo</span><select name="tipo"><option value="egreso">Egreso (sale plata)</option><option value="ingreso">Ingreso (entra plata)</option></select></label>
           <label class="campo"><span>Monto ($)</span><input name="monto" type="number" inputmode="decimal" min="0.01" step="any" required></label></div>
@@ -532,7 +558,6 @@
     "imprimir-qr": () => imprimir(`<h2 style="font-family:sans-serif;text-align:center">${esc(estado.ajustes.nombre_local)} · Escaneá y pedí desde tu mesa</h2><div class="qr-grid">${qrHtml()}</div>`),
   };
   document.addEventListener("click", (e) => {
-    if (e.target.tagName === "DIALOG") return e.target.close();
     const el = e.target.closest("[data-a]"); if (!el) return;
     const fn = acciones[el.dataset.a];
     if (fn) seguro(fn)(el.dataset, el);
@@ -543,6 +568,8 @@
   });
   $("nav").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) ir(b.dataset.vista); });
   $("avisoSonido").onclick = desbloquear;
+  // Un cuadro abierto (cobrar, ticket, editar...) solo se cierra con su X: ni tocando afuera por error ni con Esc
+  document.querySelectorAll("dialog").forEach((d) => d.addEventListener("cancel", (e) => e.preventDefault()));
   $("dlgPedido").addEventListener("close", () => { estado.editandoId = null; });
 
   // ---------- Tiempo real ----------

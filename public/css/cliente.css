@@ -184,8 +184,7 @@ dialog.ancha { width: min(94vw, 560px); }
 .campo input { width: 100%; padding: 13px; border-radius: 12px; border: 1px solid var(--linea); background: var(--suave); color: var(--tinta); font: inherit; font-size: 16px; /* 16px: evita el zoom automático en iPhone */ }
 .campo input:focus { outline: 2px solid var(--amarillo); outline-offset: 1px; background: #fff; }
 .campo input.mal { border-color: var(--rojo); background: #fdeeea; }
-.pagos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-@media (max-width: 380px) { .pagos { grid-template-columns: 1fr; } }
+.pagos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .pago { padding: 12px 4px; border-radius: 14px; border: 2px solid var(--linea); background: #fff; font-weight: 700; font-size: .8rem; }
 .pago.activa { background: var(--tinta); border-color: var(--tinta); color: #fff; }
 .desglose { font-size: .88rem; color: var(--gris); margin-bottom: 4px; }

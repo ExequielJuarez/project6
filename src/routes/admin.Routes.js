@@ -70,8 +70,8 @@ api.put("/ajustes", async (req, res) => res.json({ ok: true, ajustes: await ajus
 
 // Pedidos en pantalla (mesas abiertas + deliveries sin despachar)
 api.get("/pedidos/activos", async (req, res) => {
-  const [lista, config] = await Promise.all([pedidos.activos(), ajustes.todos()]);
-  res.json({ ok: true, pedidos: lista, mesas: config.cantidad_mesas });
+  const [lista, config, turno] = await Promise.all([pedidos.activos(), ajustes.todos(), caja.turnoAbierto()]);
+  res.json({ ok: true, pedidos: lista, mesas: config.cantidad_mesas, caja: Boolean(turno) });
 });
 api.post("/mesas/:mesa/items", async (req, res) => {
   const p = await pedidos.agregarItems(Number(req.params.mesa), req.body.items, "admin");

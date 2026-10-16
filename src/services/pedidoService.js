@@ -9,8 +9,9 @@ const { Op } = Sequelize;
 
 // El panel de administración se entera de cambios (pedido nuevo, aviso...) por acá
 const eventos = new EventEmitter();
-const METODOS = ["efectivo", "tarjeta", "transferencia", "mercadopago"];
-const PAGOS_DELIVERY = ["efectivo", "transferencia", "tarjeta"];
+// Solo se cobra en efectivo o por transferencia (en la base pueden quedar ventas viejas con otros métodos: se siguen mostrando)
+const METODOS = ["efectivo", "transferencia"];
+const PAGOS_DELIVERY = METODOS;
 const MAX_POR_LINEA = 20;
 const MAX_LINEAS = 40;
 
@@ -205,6 +206,8 @@ async function avisar(mesa, tipo) {
 async function cerrar(pedidoId, { metodo, descuento, recibido } = {}) {
   const id = await db.sequelize.transaction(async (t) => {
     const p = await pedidoAbierto(pedidoId, t);
+    const turno = await caja.turnoAbierto(t); // la caja abierta es obligatoria para cobrar o despachar
+    if (!turno) throw new ErrorNegocio("Primero abrí la caja para poder cobrar.", 409);
     const forma = metodo || p.pago_preferido;
     if (!METODOS.includes(forma)) throw new ErrorNegocio("Elegí cómo pagó el cliente");
     if (!(await PedidoItem.count({ where: { pedido_id: p.id }, transaction: t }))) throw new ErrorNegocio("El pedido está vacío. Cancelalo si no consumió nada.");
@@ -218,9 +221,8 @@ async function cerrar(pedidoId, { metodo, descuento, recibido } = {}) {
       cobrado = redondear(Number(recibido));
       if (!(cobrado >= p.total)) throw new ErrorNegocio("El efectivo recibido no alcanza para cubrir el total");
     }
-    const turno = await caja.turnoAbierto(t); // si hay caja abierta, la venta suma a ese turno (no es obligatoria)
     const ultimo = (await Pedido.max("numero_ticket", { transaction: t })) || 0;
-    await p.update({ estado: "cerrado", mesa_abierta: null, metodo_pago: forma, recibido: cobrado, numero_ticket: ultimo + 1, turno_id: turno ? turno.id : null, cerrado_en: new Date(), aviso: "" }, { transaction: t });
+    await p.update({ estado: "cerrado", mesa_abierta: null, metodo_pago: forma, recibido: cobrado, numero_ticket: ultimo + 1, turno_id: turno.id, cerrado_en: new Date(), aviso: "" }, { transaction: t });
     return p.id;
   });
   eventos.emit("cambio", { tipo: "cierre" });

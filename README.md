@@ -6,13 +6,13 @@ Node.js + Express + MySQL (Sequelize) + EJS. Funciona en celular, tablet y PC.
 
 **Cliente** (`/`): arriba elige **En mesa** o **Delivery**.
 - *En mesa*: elige su mesa (o escanea el QR `/?mesa=5`), arma el pedido y lo envía. Puede volver a pedir, ver su cuenta, pedir la cuenta o llamar al mozo.
-- *Delivery*: arma el pedido y deja nombre, WhatsApp, dirección, referencias y cómo paga (efectivo —con cuánto abona—, transferencia o débito). Si elige transferencia ve tus datos bancarios.
+- *Delivery*: arma el pedido y deja nombre, WhatsApp, dirección, referencias y cómo paga (efectivo —con cuánto abona— o transferencia). Si elige transferencia ve tus datos bancarios.
 
 **Administrador** (`/admin`, con contraseña) — pensado para que solo llegue el pedido y se atienda:
-- **Pedidos**: pantalla en vivo con **Mesas** de un lado (número de mesa bien grande) y **Delivery** del otro (con nombre, WhatsApp, dirección y forma de pago). **Suena** cuando entra un pedido y puede **imprimir solo** la comanda (solo lo nuevo de cada ronda). Cuando la mesa se va (*Cobrar y cerrar*) o el delivery sale (*Despachar*), el pedido **desaparece de la pantalla** y pasa a Ventas: nunca se mezcla con clientes que ya se fueron.
+- **Pedidos**: pantalla en vivo con **Mesas** de un lado (número de mesa bien grande) y **Delivery** del otro (con nombre, WhatsApp, dirección y forma de pago). **Suena** cuando entra un pedido y puede **imprimir solo** la comanda (solo lo nuevo de cada ronda). Los cuadros (cobrar, ticket, editar…) **solo se cierran con la X**, no al tocar afuera por error. Cuando la mesa se va (*Cobrar y cerrar*) o el delivery sale (*Despachar*), el pedido **desaparece de la pantalla** y pasa a Ventas: nunca se mezcla con clientes que ya se fueron.
 - **Ventas**: lo cobrado/despachado, por día (hoy, semana y mes arriba), con el método de pago de cada una y el ticket para reimprimir.
 - **Menú**: categorías y productos (precio, foto, pausar si se acabó). Cada categoría tiene su **foto**: los productos sin foto propia usan la de su categoría (por eso todas las hamburguesas muestran la misma). Podés subir una foto distinta a un producto cuando quieras.
-- **Caja** (opcional): efectivo inicial, ingresos/egresos y arqueo al cerrar. No hace falta para cobrar.
+- **Caja** (obligatoria): al entrar a Pedidos, si la caja está cerrada aparece un cuadro que **no se puede saltear** para abrirla con el efectivo inicial; sin caja abierta no se puede cobrar ni despachar. También tiene ingresos/egresos y arqueo al cerrar.
 - **Ajustes**: nombre, cantidad de mesas, costo de envío, tiempo estimado de entrega, dirección del local, datos de transferencia, pausar pedidos/delivery y **QR por mesa**.
 
 > El "día" de negocio va de 5:00 a 5:00 (las ventas de la 1 am cuentan para el día anterior): `HORA_CORTE_DIA` en el `.env`.
