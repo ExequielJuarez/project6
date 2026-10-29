@@ -40,6 +40,7 @@ async function agregarImagenCategorias(sequelize, qi) {
 
 module.exports = async function actualizar(sequelize) {
   const qi = sequelize.getQueryInterface();
+  await sequelize.models.Usuario.sync(); // tabla de usuarios del panel (crea solo si falta)
   let cols;
   try { cols = await qi.describeTable("pedidos"); } catch { return; } // todavía no hay tablas: las crea db:instalar
   for (const [nombre, def] of Object.entries(COLUMNAS_PEDIDOS)) {

@@ -47,3 +47,19 @@ src/views/cliente | admin       vistas EJS
 public/                         css, js, imágenes (public/uploads = fotos de productos)
 database/instalar.js            crea tablas y datos de ejemplo
 ```
+
+## Usuarios del panel
+
+El panel pide **usuario y contraseña**. Hay dos roles:
+
+- `admin`: ve todo (pedidos, ventas, menú, caja, ajustes, copias de seguridad).
+- `empleado`: solo la pantalla de **Pedidos** (puede cobrar si el administrador abrió la caja).
+
+Se crean (o se cambia la contraseña) desde la terminal del servidor:
+
+```bash
+npm run db:usuarios -- admin 'LaClaveDelAdmin' admin
+npm run db:usuarios -- usuario 'LaClaveDelEmpleado' empleado
+```
+
+Mientras no exista ningún usuario, entra `admin` con `ADMIN_PASSWORD` del `.env`.

@@ -70,4 +70,16 @@ async function cerrar({ contado, nota }) {
   return { ...r, turno: turno.toJSON(), diferencia: redondear(c - r.esperado) };
 }
 
-module.exports = { turnoAbierto, estado, abrir, movimiento, cerrar };
+// Borra un cierre anterior (con sus movimientos). Las ventas quedan en el historial: solo pierden el vínculo con ese turno.
+async function borrarCierre(id) {
+  const turno = await CajaTurno.findByPk(Number(id));
+  if (!turno) throw new ErrorNegocio("Ese cierre no existe", 404);
+  if (!turno.cerrado_en) throw new ErrorNegocio("La caja abierta no se puede borrar: primero cerrala.", 409);
+  await db.sequelize.transaction(async (transaction) => {
+    await Pedido.update({ turno_id: null }, { where: { turno_id: turno.id }, transaction });
+    await CajaMovimiento.destroy({ where: { turno_id: turno.id }, transaction });
+    await turno.destroy({ transaction });
+  });
+}
+
+module.exports = { turnoAbierto, estado, abrir, movimiento, cerrar, borrarCierre };

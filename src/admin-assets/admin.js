@@ -1,6 +1,7 @@
 // Panel de administración: pedidos en vivo (mesas + delivery), ventas, menú, caja y ajustes.
 (() => {
   const BASE = document.body.dataset.base; // dirección secreta del panel (la pone el servidor)
+  const ES_ADMIN = document.body.dataset.rol === "admin"; // el empleado solo ve Pedidos (el servidor también lo exige)
   const $ = (id) => document.getElementById(id);
   const pesos = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 2 });
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -121,6 +122,7 @@
   // ---------- Navegación ----------
   const vistas = { pedidos: vistaPedidos, ventas: vistaVentas, menu: vistaMenu, caja: vistaCaja, ajustes: vistaAjustes };
   function ir(v) {
+    if (!ES_ADMIN && v !== "pedidos") v = "pedidos";
     estado.vista = v;
     document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("activa", b.dataset.vista === v));
     document.querySelectorAll(".vista").forEach((s) => (s.hidden = s.id !== `vista-${v}`));
@@ -226,7 +228,7 @@
           <button class="interruptor ${estado.sonido ? "on" : ""}" data-a="sonido"><i></i>Sonido</button>
           <button class="interruptor ${estado.autoImprimir ? "on" : ""}" data-a="auto-imprimir" title="Imprime la comanda sola cuando llega un pedido"><i></i>Imprimir automático</button>
           <button class="btn btn-principal" data-a="nueva-mesa">＋ Nueva mesa</button></div></div>
-      ${estado.caja === false ? `<div class="banner-caja"><div><b>💵 La caja está cerrada.</b> Podés recibir pedidos, pero para cobrar o despachar hay que abrirla.</div><button class="btn btn-principal" data-a="abrir-caja">Abrir caja</button></div>` : ""}
+      ${estado.caja === false ? `<div class="banner-caja"><div><b>💵 La caja está cerrada.</b> Podés recibir pedidos, pero para cobrar o despachar ${ES_ADMIN ? "hay que abrirla." : "el administrador tiene que abrirla."}</div>${ES_ADMIN ? '<button class="btn btn-principal" data-a="abrir-caja">Abrir caja</button>' : ""}</div>` : ""}
       <div class="titulo-vista" style="margin-bottom:16px"><div class="seg">${[["todos", "Todos"], ["mesa", `Mesas (${mesas.length})`], ["delivery", `Delivery (${deliverys.length})`]].map(([k, t]) => `<button data-a="filtro" data-f="${k}" class="${f === k ? "sel" : ""}">${t}</button>`).join("")}</div></div>
       <div class="cols ${f === "todos" ? "" : "una"}">${f !== "delivery" ? colMesas : ""}${f !== "mesa" ? colDel : ""}</div>`;
   }
@@ -351,10 +353,28 @@
   }
 
   // ---------- MENÚ ----------
+  const plano = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   async function vistaMenu() {
     estado.menu = (await api("GET", BASE + "/api/menu")).categorias;
+    estado.bMenu = ""; estado.catMenu = null;
     $("vista-menu").innerHTML = `<div class="titulo-vista"><div><p class="eyebrow">Panel de administración</p><h2>Menú</h2><p>Lo que ven tus clientes. Pausá un producto si se acabó.</p></div><button class="btn btn-principal" data-a="nueva-cat">＋ Categoría</button></div>
-      ${estado.menu.map((c) => `<div class="tarjeta cat-admin">
+      <div class="buscador-menu"><input id="bMenu" type="search" placeholder="🔍 Buscar categoría o producto…" autocomplete="off" aria-label="Buscar en el menú">
+        <div class="chips-menu" id="chipsMenu"></div></div>
+      <div id="listaMenu"></div>`;
+    pintarListaMenu();
+  }
+  // Filtra por texto (categoría o producto, sin importar tildes/mayúsculas) y por la categoría elegida arriba
+  function pintarListaMenu() {
+    const q = plano(estado.bMenu).trim();
+    $("chipsMenu").innerHTML = [`<button class="chip ${estado.catMenu == null ? "sel" : ""}" data-a="cat-menu" data-id="">Todas</button>`,
+      ...estado.menu.map((c) => `<button class="chip ${estado.catMenu === c.id ? "sel" : ""}" data-a="cat-menu" data-id="${c.id}">${esc(c.nombre)}</button>`)].join("");
+    const visibles = estado.menu.map((c) => {
+      if (estado.catMenu != null && c.id !== estado.catMenu) return null;
+      if (!q || plano(c.nombre).includes(q)) return c; // coincide la categoría: se ve entera
+      const prods = c.productos.filter((p) => plano(p.nombre).includes(q) || plano(p.descripcion).includes(q));
+      return prods.length ? { ...c, productos: prods } : null;
+    }).filter(Boolean);
+    $("listaMenu").innerHTML = visibles.map((c) => `<div class="tarjeta cat-admin">
         <div class="cat-cab"><h3>${c.imagen ? `<img src="${esc(c.imagen)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px">` : c.icono + " "}${esc(c.nombre)} ${c.activo ? "" : '<span class="etq">OCULTA</span>'}</h3>
           <button class="btn btn-chico" data-a="nuevo-prod" data-id="${c.id}">＋ Producto</button><button class="btn btn-chico" data-a="editar-cat" data-id="${c.id}">Editar</button></div>
         ${c.productos.map((p) => `<div class="prod-fila ${p.activo ? "" : "inactivo"}">
@@ -362,7 +382,7 @@
           <div><b>${esc(p.nombre)} ${p.activo ? "" : '<span class="etq">PAUSADO</span>'}</b><p class="suave">${esc(p.descripcion)}</p></div>
           <div class="importe">${pesos(p.precio)}</div>
           <div class="acciones"><button class="btn btn-chico" data-a="editar-prod" data-id="${p.id}">Editar</button></div></div>`).join("") || '<p class="suave">Sin productos todavía.</p>'}
-      </div>`).join("") || '<p class="vacio">Todavía no cargaste categorías. Empezá creando una (ej: Hamburguesas).</p>'}`;
+      </div>`).join("") || (estado.menu.length ? '<p class="vacio">No encontré nada con esa búsqueda.</p>' : '<p class="vacio">Todavía no cargaste categorías. Empezá creando una (ej: Hamburguesas).</p>');
   }
   function abrirForm(tit, cuerpo, alEnviar) {
     $("dlgForm").innerHTML = `<form id="formDlg"><div class="dlg-cab"><h2>${tit}</h2><button type="button" class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>${cuerpo}</form>`;
@@ -430,7 +450,7 @@
   // ---------- CAJA (opcional) ----------
   async function vistaCaja() {
     const { actual, historial } = await api("GET", BASE + "/api/caja");
-    estado.caja = Boolean(actual);
+    estado.caja = Boolean(actual); estado.historialCaja = historial;
     let html = `<div class="titulo-vista"><div><p class="eyebrow">Panel de administración</p><h2>Caja</h2><p>Opcional: sirve para controlar el efectivo del día. No hace falta para cobrar.</p></div></div>`;
     if (!actual) {
       html += `<div class="tarjeta"><h3>La caja está cerrada</h3><p class="suave" style="margin-bottom:12px">Abrila indicando con cuánto efectivo empezás (el cambio).</p>
@@ -454,7 +474,7 @@
           <form id="formCerrar"><div class="fila-campos"><label class="campo"><span>Efectivo contado ($)</span><input name="contado" type="number" inputmode="decimal" min="0" step="any" required></label>
           <label class="campo"><span>Nota <small>(opcional)</small></span><input name="nota" maxlength="250"></label></div><button class="btn btn-peligro">Cerrar caja del día</button></form></div>`;
     }
-    html += `<div class="tarjeta"><h3>Cierres anteriores</h3>${historial.length ? `<table class="tabla"><thead><tr><th>Cierre</th><th class="der">Ventas</th><th class="der">Esperado</th><th class="der">Contado</th><th class="der">Diferencia</th></tr></thead><tbody>${historial.map((h) => `<tr><td>${fechaHora(h.cerrado_en)}</td><td class="der">${pesos(h.totalVentas)}</td><td class="der">${pesos(h.monto_esperado)}</td><td class="der">${pesos(h.monto_contado)}</td><td class="der ${h.diferencia === 0 ? "" : h.diferencia > 0 ? "pos" : "neg"}">${h.diferencia > 0 ? "+" : ""}${pesos(h.diferencia)}</td></tr>`).join("")}</tbody></table>` : '<p class="suave">Todavía no cerraste ninguna caja.</p>'}</div>`;
+    html += `<div class="tarjeta"><h3>Cierres anteriores</h3>${historial.length ? `<table class="tabla"><thead><tr><th>Cierre</th><th class="der">Ventas</th><th class="der">Esperado</th><th class="der">Contado</th><th class="der">Diferencia</th><th></th></tr></thead><tbody>${historial.map((h) => `<tr><td>${fechaHora(h.cerrado_en)}</td><td class="der">${pesos(h.totalVentas)}</td><td class="der">${pesos(h.monto_esperado)}</td><td class="der">${pesos(h.monto_contado)}</td><td class="der ${h.diferencia === 0 ? "" : h.diferencia > 0 ? "pos" : "neg"}">${h.diferencia > 0 ? "+" : ""}${pesos(h.diferencia)}</td><td class="der"><button class="btn btn-chico btn-borrar" data-a="borrar-cierre" data-id="${h.id}" title="Borrar este cierre" aria-label="Borrar este cierre">🗑</button></td></tr>`).join("")}</tbody></table>` : '<p class="suave">Todavía no cerraste ninguna caja.</p>'}</div>`;
     $("vista-caja").innerHTML = html;
     const f = (id, fn) => $(id) && ($(id).onsubmit = seguro(async (e) => { e.preventDefault(); await fn(Object.fromEntries(new FormData(e.target))); }));
     f("formAbrir", async (b) => { await api("POST", BASE + "/api/caja/abrir", b); toast("Caja abierta"); vistaCaja(); });
@@ -546,7 +566,11 @@
       refrescar();
     },
     "abrir-caja": () => abrirDialogCaja(),
-    cobrar: (d) => (estado.caja === false ? abrirDialogCaja(() => abrirCobro(d.id)) : abrirCobro(d.id)), // sin caja: la ofrece y sigue con el cobro
+    cobrar: (d) => {
+      if (estado.caja !== false) return abrirCobro(d.id);
+      if (!ES_ADMIN) return toast("La caja está cerrada. Pedile al administrador que la abra.", true);
+      return abrirDialogCaja(() => abrirCobro(d.id)); // sin caja: la ofrece y sigue con el cobro
+    },
     pct: (d) => { $("cDesc").value = Math.round(estado.cobro.p.subtotal * Number(d.p)) / 100 || ""; actualizarCobro(); },
     metodo: (d) => { estado.cobro.metodo = d.m; actualizarCobro(); },
     recibido: (d) => { $("cRec").value = d.v; actualizarCobro(); },
@@ -572,6 +596,20 @@
     "imprimir-ticket": () => imprimir(ticketHtml(estado.ticket)),
     "cerrar-ticket": () => $("dlgTicket").close(),
     "ver-ticket": async (d) => mostrarTicket((await api("GET", `${BASE}/api/pedidos/${d.id}`)).pedido, false),
+    "cat-menu": (d) => { estado.catMenu = d.id ? Number(d.id) : null; pintarListaMenu(); },
+    "borrar-cierre": (d) => {
+      const h = estado.historialCaja.find((x) => x.id === Number(d.id)); if (!h) return;
+      $("dlgConfirmar").innerHTML = `<div class="dlg-cab"><h2>¿Borrar este cierre?</h2><button class="cerrar" data-a="no-cancelar" aria-label="Cerrar">✕</button></div>
+        <p class="confirmar-txt">Cierre del <b>${fechaHora(h.cerrado_en)}</b> · ventas <b>${pesos(h.totalVentas)}</b>.</p>
+        <p class="suave" style="margin:8px 0 18px">Se borra de la lista y <b>no se puede deshacer</b>. Las ventas siguen apareciendo en Ventas.</p>
+        <div class="acciones" style="justify-content:flex-end"><button class="btn" data-a="no-cancelar">No, volver</button><button class="btn btn-peligro lleno" data-a="si-borrar-cierre" data-id="${h.id}">Sí, borrar cierre</button></div>`;
+      if (!$("dlgConfirmar").open) $("dlgConfirmar").showModal();
+    },
+    "si-borrar-cierre": async (d, el) => {
+      el.disabled = true;
+      try { await api("DELETE", `${BASE}/api/caja/turnos/${d.id}`); $("dlgConfirmar").close(); toast("Cierre borrado"); vistaCaja(); }
+      catch (e) { el.disabled = false; throw e; }
+    },
     "nueva-cat": () => formCategoria(),
     "editar-cat": (d) => formCategoria(estado.menu.find((c) => c.id == d.id)),
     "borrar-cat": async (d) => {
@@ -593,6 +631,7 @@
     if (fn) seguro(fn)(el.dataset, el);
   });
   document.addEventListener("input", (e) => {
+    if (e.target.id === "bMenu") { estado.bMenu = e.target.value; pintarListaMenu(); }
     if (e.target.id === "bProd") { estado.busqueda = e.target.value; pintarAgregar(); }
     if (e.target.id === "cDesc" || e.target.id === "cRec") actualizarCobro();
   });

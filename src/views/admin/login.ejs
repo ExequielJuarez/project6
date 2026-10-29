@@ -14,10 +14,12 @@
     <img src="/img/logo-street-burger.jpg" alt="" class="logo" width="84" height="84">
     <h1>Panel del local</h1>
     <% if (!configurada) { %>
-      <p class="error">Falta definir <code>ADMIN_PASSWORD</code> en el archivo <code>.env</code> del servidor.</p>
+      <p class="error">Falta crear los usuarios del panel (<code>npm run db:usuarios</code>) o definir <code>ADMIN_PASSWORD</code> en el <code>.env</code>.</p>
     <% } else { %>
+      <label for="usuario">Usuario</label>
+      <input id="usuario" name="usuario" type="text" required autofocus autocomplete="username" autocapitalize="none" spellcheck="false">
       <label for="clave">Contraseña</label>
-      <input id="clave" name="clave" type="password" required autofocus autocomplete="current-password">
+      <input id="clave" name="clave" type="password" required autocomplete="current-password">
       <% if (error) { %><p class="error"><%= error %></p><% } %>
       <button class="btn btn-principal" type="submit">Ingresar</button>
     <% } %>

@@ -7,7 +7,8 @@
     "prod": "node src/app.js",
     "db:instalar": "node database/instalar.js",
     "db:menu": "node database/cargar-menu.js",
-    "db:limpiar": "node database/limpiar-datos.js"
+    "db:limpiar": "node database/limpiar-datos.js",
+    "db:usuarios": "node database/usuarios.js"
   },
   "keywords": [],
   "author": "",

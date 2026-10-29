@@ -274,3 +274,11 @@ dialog::backdrop { background: rgba(42,27,20,.55); backdrop-filter: blur(2px); }
   #zonaImpresion .ticket { max-width: 72mm; margin: 0; padding: 0; border: 0; font-size: 12px; }
   #zonaImpresion .ticket.comanda .it { font-size: 15px; }
 }
+
+/* Empleado: solo ve Pedidos */
+body[data-rol="empleado"] #nav button:not([data-vista="pedidos"]) { display: none; }
+/* Buscador del menú */
+.buscador-menu { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 8px 0 12px; margin-bottom: 8px; }
+.buscador-menu input { width: 100%; font-size: 1rem; padding: 12px 14px; }
+.chips-menu { display: flex; gap: 6px; overflow-x: auto; padding: 10px 0 2px; scrollbar-width: thin; }
+.btn-borrar { padding: 4px 8px; }
