@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>Panel · Ingresar</title>
-  <link rel="icon" href="/img/logo-street-burger.jpg">
+  <link rel="icon" href="/img/logo-street-burger.png">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="<%= base %>/assets/admin.css">
 </head>
 <body class="login-body">
   <form class="login" method="post" action="<%= base %>/login" autocomplete="on">
-    <img src="/img/logo-street-burger.jpg" alt="" class="logo" width="84" height="84">
+    <img src="/img/logo-street-burger.png" alt="" class="logo" width="84" height="84">
     <h1>Panel del local</h1>
     <% if (!configurada) { %>
       <p class="error">Falta crear los usuarios del panel (<code>npm run db:usuarios</code>) o definir <code>ADMIN_PASSWORD</code> en el <code>.env</code>.</p>
