@@ -497,6 +497,7 @@
         <div class="fila-campos"><label class="campo"><span>Nombre (sale en los tickets)</span><input name="nombre_local" required maxlength="60" value="${esc(a.nombre_local)}"></label>
         <label class="campo"><span>Cantidad de mesas</span><input name="cantidad_mesas" type="number" min="1" max="100" required value="${a.cantidad_mesas}"></label></div>
         <label class="campo"><input type="checkbox" name="recibir_pedidos" ${a.recibir_pedidos ? "checked" : ""}> Recibir pedidos de mesa desde el celular <small>(destildalo para pausarlos)</small></label>
+        <label class="campo"><input type="checkbox" name="halloween" ${a.halloween ? "checked" : ""}> 🎃 Decoración de Halloween en el menú <small>(murciélagos, arañita, telarañas y logo giratorio · destildalo para sacarla)</small></label>
         <label class="campo"><input type="checkbox" name="recibir_delivery" ${a.recibir_delivery ? "checked" : ""}> Recibir pedidos de delivery <small>(destildalo cuando no puedas enviar)</small></label>
         <div class="fila-campos"><label class="campo"><span>Costo de envío ($)</span><input name="costo_envio" type="number" inputmode="decimal" min="0" step="any" value="${a.costo_envio || 0}"></label>
         <label class="campo"><span>Tiempo estimado de entrega</span><input name="tiempo_estimado" maxlength="20" placeholder="30-45 min" value="${esc(a.tiempo_estimado)}"></label></div>
@@ -514,7 +515,7 @@
         <div class="qr-grid" id="qrGrid"></div></div>`;
     $("formAj").onsubmit = seguro(async (e) => {
       e.preventDefault(); const fd = new FormData(e.target);
-      estado.ajustes = (await api("PUT", BASE + "/api/ajustes", { nombre_local: fd.get("nombre_local"), cantidad_mesas: fd.get("cantidad_mesas"), recibir_pedidos: fd.has("recibir_pedidos"), recibir_delivery: fd.has("recibir_delivery"), costo_envio: fd.get("costo_envio") || 0, tiempo_estimado: fd.get("tiempo_estimado"), direccion_local: fd.get("direccion_local"), transferencia_info: fd.get("transferencia_info") })).ajustes;
+      estado.ajustes = (await api("PUT", BASE + "/api/ajustes", { nombre_local: fd.get("nombre_local"), cantidad_mesas: fd.get("cantidad_mesas"), recibir_pedidos: fd.has("recibir_pedidos"), recibir_delivery: fd.has("recibir_delivery"), halloween: fd.has("halloween"), costo_envio: fd.get("costo_envio") || 0, tiempo_estimado: fd.get("tiempo_estimado"), direccion_local: fd.get("direccion_local"), transferencia_info: fd.get("transferencia_info") })).ajustes;
       $("nombreLocal").textContent = estado.ajustes.nombre_local;
       toast("Ajustes guardados"); await pintarQR();
     });

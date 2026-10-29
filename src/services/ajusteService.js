@@ -10,6 +10,7 @@ const DEFECTOS = {
   transferencia_info: "",
   direccion_local: "",
   tiempo_estimado: "30-45 min",
+  halloween: "1",
 };
 
 function armar(filas) {
@@ -24,6 +25,7 @@ function armar(filas) {
     transferencia_info: out.transferencia_info,
     direccion_local: out.direccion_local,
     tiempo_estimado: out.tiempo_estimado,
+    halloween: out.halloween === "1",
   };
 }
 
@@ -45,6 +47,7 @@ async function guardar(b) {
     transferencia_info: String(b.transferencia_info || "").trim().slice(0, 300),
     direccion_local: String(b.direccion_local || "").trim().slice(0, 120),
     tiempo_estimado: String(b.tiempo_estimado || "").trim().slice(0, 20),
+    halloween: b.halloween ? "1" : "0",
   };
   for (const [clave, valor] of Object.entries(pares)) await Ajuste.upsert({ clave, valor });
   return todos();
