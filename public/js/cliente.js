@@ -39,7 +39,8 @@
     const delivery = modo === "delivery";
     $("mesaTxt").textContent = delivery ? "Delivery a domicilio" : mesa ? `Mesa ${mesa}` : "Escaneá el QR de tu mesa";
     $("btnMesa").classList.toggle("sin", !delivery && !mesa);
-    $("ubicDerTxt").textContent = delivery && datos.tiempo ? datos.tiempo : "Ver horarios";
+    $("ubicDer").hidden = !(delivery && datos.tiempo);
+    $("ubicDerTxt").textContent = datos.tiempo || "";
     const av = $("avisoQr");
     av.hidden = delivery || Boolean(mesa);
     av.textContent = qrViejo ? "Ese código QR ya no sirve. Pedile al mozo que te indique el QR actual de tu mesa 🙂" : "Para pedir en tu mesa, escaneá el código QR que está en ella. También podés pedir por Delivery.";
@@ -204,13 +205,6 @@
   $("btnPedirCuenta").onclick = () => avisar("cuenta");
   $("btnMozo").onclick = () => avisar("mozo");
 
-  // ---- Horarios ----
-  $("btnHorarios").onclick = () => $("dlgHorarios").showModal();
-  document.querySelectorAll(".tab").forEach((t) => (t.onclick = () => {
-    document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("activa", x === t));
-    $("imgHorario").src = t.dataset.tab === "noche" ? "/img/horarios-noche.webp" : "/img/horarios-cafeteria.webp";
-  }));
-
   // ---- Categorías y búsqueda: filtran lo que se ve (sin mover la página a los tirones) ----
   const secciones = [...document.querySelectorAll(".categoria")];
   const cats = [...document.querySelectorAll(".cat")];
@@ -274,8 +268,6 @@
   tabs.pedidos.onclick = () => { marcarTab("pedidos"); modo === "delivery" ? abrirCarrito() : abrirCuenta(); };
   tabs.cuenta.onclick = () => { marcarTab("cuenta"); $("dlgOpciones").showModal(); };
   document.querySelectorAll("dialog").forEach((d) => d.addEventListener("close", () => marcarTab("inicio")));
-  $("ubicDer").onclick = () => $("dlgHorarios").showModal();
-  $("opHorarios").onclick = () => { $("dlgOpciones").close(); $("dlgHorarios").showModal(); };
   $("opBorrar").onclick = () => {
     Object.keys(campos).forEach((k) => { delete cliente[k]; $(campos[k]).value = ""; });
     guardar("sb_cliente", cliente); $("dlgOpciones").close(); toast("Borramos tus datos guardados");

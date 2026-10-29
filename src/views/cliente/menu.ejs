@@ -8,14 +8,12 @@
   <link rel="icon" href="/img/logo-street-burger.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/cliente.css">
 </head>
 <body>
   <header class="cab">
-    <button class="ib" id="btnHorarios" type="button" aria-label="Horarios y más">
-      <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-    </button>
+    <span></span>
     <img src="/img/logo-street-burger.png" alt="<%= config.nombre_local %>" class="logo-cab" width="76" height="76">
     <div class="cab-der">
       <button class="ib" id="btnBuscar" type="button" aria-label="Buscar">
@@ -45,10 +43,10 @@
         <svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
         <span id="mesaTxt">Escaneá el QR de tu mesa</span>
       </div>
-      <button type="button" class="ubic-der" id="ubicDer">
+      <span class="ubic-der" id="ubicDer" hidden>
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-        <span id="ubicDerTxt">Ver horarios</span>
-      </button>
+        <span id="ubicDerTxt"></span>
+      </span>
     </div>
 
     <div class="aviso" id="avisoQr" hidden></div>
@@ -188,20 +186,9 @@
       <button type="button" class="modo" data-modo="delivery">🛵 Delivery</button>
     </div>
     <% } %>
+    <% if (config.direccion_local) { %><p class="op-tit">Dónde estamos</p><p class="dlg-sub">📍 <%= config.direccion_local %></p><% } %>
     <p class="op-tit">Más</p>
-    <button type="button" class="op-fila" id="opHorarios"><span>🕒 Horarios del local</span><span aria-hidden="true">›</span></button>
     <button type="button" class="op-fila" id="opBorrar" hidden><span>🗑️ Borrar mis datos guardados</span><span aria-hidden="true">›</span></button>
-  </dialog>
-
-  <!-- Horarios -->
-  <dialog id="dlgHorarios" class="hoja ancha">
-    <div class="dlg-cab"><h2>Horarios</h2><button class="cerrar" data-cerrar aria-label="Cerrar">✕</button></div>
-    <% if (config.direccion_local) { %><p class="dlg-sub">📍 <%= config.direccion_local %></p><% } %>
-    <div class="tabs">
-      <button class="tab activa" data-tab="cafe" type="button">☕ Cafetería</button>
-      <button class="tab" data-tab="noche" type="button">🌙 Noche</button>
-    </div>
-    <img id="imgHorario" src="/img/horarios-cafeteria.webp" alt="Horarios" class="horario-img">
   </dialog>
 
   <div class="toast" id="toast" role="status" hidden></div>

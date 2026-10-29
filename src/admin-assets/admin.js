@@ -500,7 +500,7 @@
         <label class="campo"><input type="checkbox" name="recibir_delivery" ${a.recibir_delivery ? "checked" : ""}> Recibir pedidos de delivery <small>(destildalo cuando no puedas enviar)</small></label>
         <div class="fila-campos"><label class="campo"><span>Costo de envío ($)</span><input name="costo_envio" type="number" inputmode="decimal" min="0" step="any" value="${a.costo_envio || 0}"></label>
         <label class="campo"><span>Tiempo estimado de entrega</span><input name="tiempo_estimado" maxlength="20" placeholder="30-45 min" value="${esc(a.tiempo_estimado)}"></label></div>
-        <label class="campo"><span>Dirección del local <small>(se muestra en Horarios)</small></span><input name="direccion_local" maxlength="120" placeholder="Av. San Martín 123, La Banda" value="${esc(a.direccion_local)}"></label>
+        <label class="campo"><span>Dirección del local <small>(se muestra en el menú, en Cuenta)</small></span><input name="direccion_local" maxlength="120" placeholder="Av. San Martín 123, La Banda" value="${esc(a.direccion_local)}"></label>
         <label class="campo"><span>Datos para transferencias <small>(se muestran al cliente que elige pagar por transferencia)</small></span><textarea name="transferencia_info" rows="3" maxlength="300" placeholder="Alias: street.burger&#10;CBU: 0000000000000000000000&#10;Titular: ...">${esc(a.transferencia_info)}</textarea></label>
         <button class="btn btn-principal">Guardar</button></form></div>
       <div class="tarjeta"><h3>Copia de seguridad</h3>
