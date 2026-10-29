@@ -11,14 +11,22 @@
   if (cab) { cab.insertAdjacentHTML("afterbegin", TELA.replace("%C%", "izq") + TELA.replace("%C%", "der")); }
 
   // ---- Murciélagos ----
-  const MURCIELAGO = `<svg viewBox="0 0 64 32" aria-hidden="true"><path d="M29 9l-1.5-6 3.5 4h2l3.5-4L35 9c3-1 7-4 12-3 7 1 13 5 17 12-5-3-9-2-12 1-3-3-7-2-9 1-2-3-5-3-7 1l-3 6-3-6c-2-4-5-4-7-1-2-3-6-4-9-1-3-3-7-4-12-1 4-7 10-11 17-12 5-1 9 2 12 3z"/></svg>`;
+  // Murciélago: cuerpo + dos alas con membrana recortada y "dedos"; las alas aletean de forma independiente
+  const ALA = `<path d="M0 0C6-9 20-17 44-14C40-9 38-5 36 0C35-4 30-4 27 1C25-3 20-2 17 4C14 0 9 1 6 6C4 4 2 5 0 8Z"/><path class="hueso" d="M0 0L44-14M0 0L36 0M0 0L27 1M0 0L17 4"/>`;
+  const MURCIELAGO = `<svg viewBox="0 0 100 44" aria-hidden="true">
+    <g class="ala"><g transform="translate(52 20)">${ALA}</g></g>
+    <g transform="translate(100 0) scale(-1 1)"><g class="ala"><g transform="translate(52 20)">${ALA}</g></g></g>
+    <path d="M46 14L44.5 5L49 10.5ZM54 14L55.5 5L51 10.5Z"/><ellipse cx="50" cy="26" rx="4.6" ry="9"/><circle cx="50" cy="16" r="4.2"/>
+    <path d="M47.5 34L46 39M52.5 34L54 39" class="hueso"/></svg>`;
   function volarMurcielago() {
     if (!visible()) return;
     const el = document.createElement("div");
     el.className = "murcielago";
     el.innerHTML = MURCIELAGO;
     const ancho = innerWidth, alto = innerHeight;
-    const escala = rnd(.7, 1.3); el.style.width = 46 * escala + "px";
+    const escala = rnd(.7, 1.35); el.style.width = 64 * escala + "px";
+    el.style.opacity = escala < .95 ? .6 : .92;               // los más chicos parecen estar más lejos
+    el.style.setProperty("--aleteo", rnd(.22, .34).toFixed(2) + "s");
     const izqDer = Math.random() < .5;
     const y0 = rnd(alto * .12, alto * .65), ampl = rnd(18, 55), ciclos = rnd(1.5, 3);
     const pasos = 18, marcos = [];
@@ -35,7 +43,13 @@
   })(3500);
 
   // ---- Arañita: baja por un hilo, camina sobre las letras de un título y vuelve a subir ----
-  const ARANA = `<span class="hilo"></span><svg viewBox="0 0 28 28" aria-hidden="true"><g class="patas"><path d="M14 14L5 6M14 14L3 11M14 14L3 17M14 14L5 22M14 14L23 6M14 14L25 11M14 14L25 17M14 14L23 22"/></g><ellipse class="cuerpo" cx="13" cy="14" rx="6" ry="5"/><circle class="cuerpo" cx="20" cy="14" r="3"/></svg>`;
+  // Araña vista desde arriba: abdomen con marca, cefalotórax con ojos y 8 patas articuladas que caminan alternadas
+  const PATAS_A = "M29 18L34 11L38 8M25 17L22 8L17 4M27 22L29 32L28 37M23 22L15 30L8 31";
+  const PATAS_B = "M27 17L29 8L28 3M23 18L15 10L8 9M29 22L34 29L38 32M25 23L22 32L17 36";
+  const ARANA = `<span class="hilo"></span><svg viewBox="0 0 42 40" aria-hidden="true">
+    <g class="patas pa"><path d="${PATAS_A}"/></g><g class="patas pb"><path d="${PATAS_B}"/></g>
+    <ellipse class="cuerpo" cx="15" cy="20" rx="10" ry="7.5"/><ellipse class="marca" cx="14" cy="20" rx="3.4" ry="2.2"/>
+    <ellipse class="cuerpo" cx="27" cy="20" rx="5.4" ry="4.4"/><circle class="ojo" cx="31" cy="18.6" r=".9"/><circle class="ojo" cx="31" cy="21.4" r=".9"/></svg>`;
   let caminando = false;
   function aranaCamina() {
     if (caminando || !visible() || document.querySelector("dialog[open]")) return false;

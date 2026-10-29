@@ -282,3 +282,7 @@ body[data-rol="empleado"] #nav button:not([data-vista="pedidos"]) { display: non
 .buscador-menu input { width: 100%; font-size: 1rem; padding: 12px 14px; }
 .chips-menu { display: flex; gap: 6px; overflow-x: auto; padding: 10px 0 2px; scrollbar-width: thin; }
 .btn-borrar { padding: 4px 8px; }
+
+/* Íconos dibujados (reemplazan a los emojis) */
+.i { width: 1.15em; height: 1.15em; vertical-align: -.2em; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.cerrar .i { width: 18px; height: 18px; vertical-align: middle; }

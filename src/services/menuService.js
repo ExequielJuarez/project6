@@ -30,7 +30,7 @@ function imagenValida(v) {
 function datosCategoria(b) {
   const nombre = String(b.nombre || "").trim().slice(0, 80);
   if (!nombre) throw new ErrorNegocio("La categoría necesita un nombre");
-  return { nombre, imagen: imagenValida(b.imagen), icono: String(b.icono || "🍽️").trim().slice(0, 8) || "🍽️", orden: Number.parseInt(b.orden) || 0, activo: b.activo !== false };
+  return { nombre, imagen: imagenValida(b.imagen), icono: "", orden: Number.parseInt(b.orden) || 0, activo: b.activo !== false };
 }
 
 function datosProducto(b) {

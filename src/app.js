@@ -14,7 +14,7 @@ const limitador = require("./middlewares/limitador");
 // La dirección secreta del panel se valida SIEMPRE (en producción, además, es obligatoria y tiene que ser difícil de adivinar)
 const erroresPanel = problemasAdminPath(process.env.NODE_ENV === "production");
 if (erroresPanel.length) {
-  console.error("❌ Problema con la dirección del panel (ADMIN_PATH en el archivo .env):\n   - " + erroresPanel.join("\n   - ") + `\n   Por ejemplo: ADMIN_PATH=${sugerenciaAdminPath()}`);
+  console.error("Problema con la dirección del panel (ADMIN_PATH en el archivo .env):\n   - " + erroresPanel.join("\n   - ") + `\n   Por ejemplo: ADMIN_PATH=${sugerenciaAdminPath()}`);
   process.exit(1);
 }
 
@@ -36,7 +36,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json({ limit: "100kb" }));
 
 const secreto = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
-if (!process.env.SESSION_SECRET) console.warn("⚠️  Definí SESSION_SECRET en el .env (si no, el panel te pide la clave de nuevo cada vez que se reinicia el servidor).");
+if (!process.env.SESSION_SECRET) console.warn("Definí SESSION_SECRET en el .env (si no, el panel te pide la clave de nuevo cada vez que se reinicia el servidor).");
 app.use(
   session({
     name: "sb_admin",
@@ -72,7 +72,7 @@ app.use((err, req, res, next) => {
   if (err.name === "MulterError") status = 400, mensaje = err.code === "LIMIT_FILE_SIZE" ? "La imagen pesa más de 5 MB" : "No se pudo subir la imagen";
   else if (err.type === "entity.parse.failed") status = 400, mensaje = "Datos inválidos";
   else if (!err.status) {
-    console.error("❌", err);
+    console.error("", err);
     mensaje = "Error del servidor, probá de nuevo";
   }
   if (req.path.startsWith("/api/") || esApiAdmin(req) || req.accepts(["html", "json"]) === "json") {
@@ -85,12 +85,12 @@ db.sequelize
   .authenticate()
   .then(() => require("./model/database/actualizar")(db.sequelize))
   .then(() => {
-    console.log(`✅ Conectado a la base de datos "${db.sequelize.config.database}"`);
-    if (!process.env.ADMIN_PASSWORD && !process.env.ADMIN_PASSWORD_HASH) console.warn("⚠️  Definí ADMIN_PASSWORD en el .env para poder entrar a /admin.");
-    app.listen(puerto, () => console.log(`🚀 Servidor corriendo en http://localhost:${puerto}  (panel: ${ADMIN_PATH})`));
+    console.log(`Conectado a la base de datos "${db.sequelize.config.database}"`);
+    if (!process.env.ADMIN_PASSWORD && !process.env.ADMIN_PASSWORD_HASH) console.warn("Definí ADMIN_PASSWORD en el .env para poder entrar a /admin.");
+    app.listen(puerto, () => console.log(`Servidor corriendo en http://localhost:${puerto}  (panel: ${ADMIN_PATH})`));
   })
   .catch((error) => {
-    console.error("❌ No se pudo conectar con la base de datos:", error.message);
+    console.error("No se pudo conectar con la base de datos:", error.message);
     console.error("   Revisá DB_HOST, DB_USER, DB_PASSWORD y DB_NAME en el .env y que MySQL esté encendido.");
     console.error("   Para crear las tablas y cargar el menú de ejemplo: npm run db:instalar");
     process.exit(1);

@@ -42,7 +42,7 @@ router.get("/api/mesas/:mesa/cuenta", async (req, res, next) => {
 router.post("/api/pedidos", limiteEscritura, async (req, res, next) => {
   try {
     const config = await ajustes.todos();
-    if (!config.recibir_pedidos) throw new ErrorNegocio("Por ahora no estamos tomando pedidos desde el celular. Pedile al mozo 🙂", 409);
+    if (!config.recibir_pedidos) throw new ErrorNegocio("Por ahora no estamos tomando pedidos desde el celular. Pedile al mozo.", 409);
     const mesa = numeroMesa(req.body.mesa);
     exigirQr(mesa, req.body.token);
     const p = await pedidos.agregarItems(mesa, req.body.items, "cliente");

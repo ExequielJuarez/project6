@@ -12,7 +12,8 @@
   <link rel="stylesheet" href="/css/cliente.css">
   <% if (config.halloween) { %><link rel="stylesheet" href="/css/halloween.css"><% } %>
 </head>
-<body class="<%= config.halloween ? "halloween" : "" %>">
+<body class="<%= config.halloween ? 'halloween' : '' %>">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol><symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/></symbol><symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></symbol><symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11zM12 10m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0"/></symbol><symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></symbol><symbol id="i-cash" viewBox="0 0 24 24"><path d="M3 7h18v10H3zM12 12m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M6 10v4M18 10v4"/></symbol><symbol id="i-bank" viewBox="0 0 24 24"><path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></symbol><symbol id="i-card" viewBox="0 0 24 24"><path d="M3 6h18v12H3zM3 10h18"/></symbol><symbol id="i-bag" viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6zM9 8a3 3 0 0 1 6 0"/></symbol><symbol id="i-mesa" viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 2-3 4-3 7h3v11"/></symbol><symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol><symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol><symbol id="i-image" viewBox="0 0 24 24"><path d="M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 5M16 9.5m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0"/></symbol><symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></symbol><symbol id="i-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/></symbol><symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4"/></symbol><symbol id="i-search" viewBox="0 0 24 24"><path d="M11 11m-7 0a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5"/></symbol><symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol><symbol id="i-ext" viewBox="0 0 24 24"><path d="M8 16L16 8M9 8h7v7"/></symbol></svg>
   <header class="cab">
     <span></span>
     <% if (config.halloween) { %>
@@ -43,8 +44,8 @@
   <main class="contenedor">
     <% if (config.recibir_delivery) { %>
     <div class="modos" id="modos" role="tablist" aria-label="Tipo de pedido">
-      <button type="button" class="modo activa" data-modo="mesa" role="tab">🍽️ En mesa</button>
-      <button type="button" class="modo" data-modo="delivery" role="tab">🛵 Delivery</button>
+      <button type="button" class="modo activa" data-modo="mesa" role="tab"><svg class="i" aria-hidden="true"><use href="#i-mesa"/></svg> En mesa</button>
+      <button type="button" class="modo" data-modo="delivery" role="tab"><svg class="i" aria-hidden="true"><use href="#i-bag"/></svg> Delivery</button>
     </div>
     <% } %>
 
@@ -62,7 +63,7 @@
     <div class="aviso" id="avisoQr" hidden></div>
 
     <% if (!config.recibir_pedidos) { %>
-      <div class="aviso">Por ahora no tomamos pedidos desde el celular. Pedile al mozo 🙂</div>
+      <div class="aviso">Por ahora no tomamos pedidos desde el celular. Pedile al mozo.</div>
     <% } %>
 
     <a class="banner" href="#listado" id="banner" aria-label="Ver menú">
@@ -71,11 +72,12 @@
 
     <nav class="cats" id="cats" aria-label="Categorías">
       <button type="button" class="cat activa" data-cat="todas">
-        <span class="cat-icono">🍽️</span><span class="cat-nombre">Todas</span>
+        <span class="cat-icono"><img src="/img/logo-street-burger.png" alt="" width="62" height="62"></span><span class="cat-nombre">Todas</span>
       </button>
       <% categorias.forEach((c) => { %>
         <button type="button" class="cat" data-cat="<%= c.id %>">
-          <span class="cat-icono"><%= c.icono %></span>
+          <% const fotoCat = c.imagen || (c.productos.find((p) => p.imagen) || {}).imagen || ""; %>
+          <span class="cat-icono"><img src="<%= fotoCat || '/img/logo-street-burger.png' %>" alt="" width="62" height="62" loading="lazy"></span>
           <span class="cat-nombre"><%= c.nombre %></span>
         </button>
       <% }) %>
@@ -88,18 +90,18 @@
         <section class="categoria" data-cat="<%= c.id %>">
           <div class="cat-cab">
             <h2><%= c.nombre %></h2>
-            <button type="button" class="ver-todas" data-ver="<%= c.id %>">Ver todas <span aria-hidden="true">→</span></button>
+            <button type="button" class="ver-todas" data-ver="<%= c.id %>">Ver todas <svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></button>
           </div>
           <div class="grilla">
             <% c.productos.forEach((p) => { const foto = p.imagen || c.imagen; %>
               <article class="prod" data-id="<%= p.id %>" data-txt="<%= (p.nombre + ' ' + p.descripcion + ' ' + c.nombre).toLowerCase() %>">
                 <div class="prod-img<%= foto ? '' : ' sin-foto' %>">
-                  <% if (foto) { %><img src="<%= foto %>" alt="<%= p.nombre %>" loading="lazy" width="96" height="96"><% } else { %><span><%= c.icono %></span><% } %>
+                  <% if (foto) { %><img src="<%= foto %>" alt="<%= p.nombre %>" loading="lazy" width="96" height="96"><% } else { %><img src="/img/logo-street-burger.png" alt="" class="foto-vacia" width="96" height="96"><% } %>
                 </div>
                 <div class="prod-info">
                   <h3><%= p.nombre %></h3>
                   <% if (p.descripcion) { %><p class="prod-desc"><%= p.descripcion %></p><% } %>
-                  <span class="prod-cat"><i><%= c.icono %></i><%= c.nombre %></span>
+                  <span class="prod-cat"><%= c.nombre %></span>
                 </div>
                 <div class="prod-lado">
                   <span class="precio"><%= formatoPrecio(p.precio) %></span>
@@ -110,7 +112,7 @@
           </div>
         </section>
       <% }) %>
-      <p class="vacio" id="sinResultados" hidden>No encontramos nada con esa búsqueda 🔍</p>
+      <p class="vacio" id="sinResultados" hidden>No encontramos nada con esa búsqueda</p>
     </div>
 
     <footer class="pie">
@@ -138,7 +140,7 @@
 
   <!-- Mi pedido (carrito) -->
   <dialog id="dlgCarrito" class="hoja">
-    <div class="dlg-cab"><h2>Tu pedido</h2><button class="cerrar" data-cerrar aria-label="Cerrar">✕</button></div>
+    <div class="dlg-cab"><h2>Tu pedido</h2><button class="cerrar" data-cerrar aria-label="Cerrar"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button></div>
     <div class="para-mesa" id="paraMesa">Para la <strong id="carritoMesa">mesa</strong></div>
     <div id="carritoLista" class="lista"></div>
     <div id="datosDelivery" class="datos" hidden>
@@ -149,8 +151,8 @@
       <label class="campo"><span>Referencias <small>(opcional)</small></span><input id="dRef" maxlength="200" placeholder="Piso, timbre, entre calles…"></label>
       <div class="campo"><span>¿Cómo pagás?</span>
         <div class="pagos" id="dPagos">
-          <button type="button" class="pago activa" data-pago="efectivo">💵 Efectivo</button>
-          <button type="button" class="pago" data-pago="transferencia">🏦 Transferencia</button>
+          <button type="button" class="pago activa" data-pago="efectivo"><svg class="i" aria-hidden="true"><use href="#i-cash"/></svg> Efectivo</button>
+          <button type="button" class="pago" data-pago="transferencia"><svg class="i" aria-hidden="true"><use href="#i-bank"/></svg> Transferencia</button>
         </div></div>
       <label class="campo" id="dPagoConBox"><span>¿Con cuánto abonás? <small>(opcional, para llevarte el vuelto)</small></span><input id="dPagoCon" type="number" inputmode="decimal" min="0" placeholder="Ej: 20000"></label>
       <p class="nota-peq" id="dTransf" hidden></p>
@@ -165,7 +167,7 @@
   <!-- Pedido enviado -->
   <dialog id="dlgListo" class="hoja">
     <div class="listo">
-      <div class="listo-ok">✓</div>
+      <div class="listo-ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg></div>
       <h2>¡Pedido enviado!</h2>
       <p id="listoTxt">Ya lo recibimos.</p>
       <p class="info-transf" id="listoTransf" hidden></p>
@@ -176,29 +178,29 @@
 
   <!-- Mi cuenta (lo pedido en la mesa) -->
   <dialog id="dlgCuenta" class="hoja">
-    <div class="dlg-cab"><h2>Mi cuenta · <span id="cuentaMesa"></span></h2><button class="cerrar" data-cerrar aria-label="Cerrar">✕</button></div>
+    <div class="dlg-cab"><h2>Mi cuenta · <span id="cuentaMesa"></span></h2><button class="cerrar" data-cerrar aria-label="Cerrar"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button></div>
     <div id="cuentaLista" class="lista"></div>
     <div class="total-fila" id="cuentaTotalFila" hidden><span>Total hasta ahora</span><strong id="cuentaTotal">$0</strong></div>
     <p class="error" id="cuentaMsg" hidden></p>
     <div class="dos-botones" id="cuentaBotones" hidden>
-      <button class="btn-principal" id="btnPedirCuenta" type="button">🧾 Pedir la cuenta</button>
-      <button class="btn-sec" id="btnMozo" type="button">🙋 Llamar al mozo</button>
+      <button class="btn-principal" id="btnPedirCuenta" type="button"><svg class="i" aria-hidden="true"><use href="#i-receipt"/></svg> Pedir la cuenta</button>
+      <button class="btn-sec" id="btnMozo" type="button"><svg class="i" aria-hidden="true"><use href="#i-bell"/></svg> Llamar al mozo</button>
     </div>
   </dialog>
 
   <!-- Cuenta / opciones -->
   <dialog id="dlgOpciones" class="hoja">
-    <div class="dlg-cab"><h2>Tu cuenta</h2><button class="cerrar" data-cerrar aria-label="Cerrar">✕</button></div>
+    <div class="dlg-cab"><h2>Tu cuenta</h2><button class="cerrar" data-cerrar aria-label="Cerrar"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button></div>
     <% if (config.recibir_delivery) { %>
     <p class="op-tit">Tipo de pedido</p>
     <div class="modos modos-dlg">
-      <button type="button" class="modo" data-modo="mesa">🍽️ En mesa</button>
-      <button type="button" class="modo" data-modo="delivery">🛵 Delivery</button>
+      <button type="button" class="modo" data-modo="mesa"><svg class="i" aria-hidden="true"><use href="#i-mesa"/></svg> En mesa</button>
+      <button type="button" class="modo" data-modo="delivery"><svg class="i" aria-hidden="true"><use href="#i-bag"/></svg> Delivery</button>
     </div>
     <% } %>
-    <% if (config.direccion_local) { %><p class="op-tit">Dónde estamos</p><p class="dlg-sub">📍 <%= config.direccion_local %></p><% } %>
+    <% if (config.direccion_local) { %><p class="op-tit">Dónde estamos</p><p class="dlg-sub"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg> <%= config.direccion_local %></p><% } %>
     <p class="op-tit">Más</p>
-    <button type="button" class="op-fila" id="opBorrar" hidden><span>🗑️ Borrar mis datos guardados</span><span aria-hidden="true">›</span></button>
+    <button type="button" class="op-fila" id="opBorrar" hidden><span><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg> Borrar mis datos guardados</span><span aria-hidden="true">›</span></button>
   </dialog>
 
   <div class="toast" id="toast" role="status" hidden></div>
@@ -212,7 +214,7 @@
     envio: config.costo_envio,
     transferencia: config.transferencia_info,
     tiempo: config.tiempo_estimado,
-    productos: Object.fromEntries(categorias.flatMap((c) => c.productos.map((p) => [p.id, { nombre: p.nombre, precio: p.precio, icono: c.icono }])))
+    productos: Object.fromEntries(categorias.flatMap((c) => c.productos.map((p) => [p.id, { nombre: p.nombre, precio: p.precio }])))
   }).replace(/</g, "\\u003c") %></script>
   <script src="/js/cliente.js"></script>
   <% if (config.halloween) { %><script src="/js/halloween.js" defer></script><% } %>

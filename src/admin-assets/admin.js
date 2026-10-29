@@ -6,7 +6,9 @@
   const pesos = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 2 });
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const METODOS = { efectivo: "Efectivo", transferencia: "Transferencia" };
-  const ICONO_PAGO = { efectivo: "💵", transferencia: "🏦", tarjeta: "💳", mercadopago: "📱" };
+  const ICONOS = {"x": "M6 6l12 12M18 6L6 18", "check": "M5 12.5l4.5 4.5L19 7", "print": "M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z", "phone": "M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z", "pin": "M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11zM12 10m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0", "home": "M3 11l9-8 9 8M5 10v10h14V10", "cash": "M3 7h18v10H3zM12 12m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M6 10v4M18 10v4", "bank": "M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18", "card": "M3 6h18v12H3zM3 10h18", "bag": "M5 8h14l-1 12H6zM9 8a3 3 0 0 1 6 0", "mesa": "M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 2-3 4-3 7h3v11", "chat": "M4 5h16v11H9l-5 4z", "download": "M12 4v11M7 11l5 5 5-5M5 20h14", "image": "M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 5M16 9.5m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0", "trash": "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6", "receipt": "M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6", "bell": "M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4", "search": "M11 11m-7 0a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5", "chev": "M9 5l7 7-7 7", "ext": "M8 16L16 8M9 8h7v7"};
+  const ico = (n) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONOS[n]}"/></svg>`;
+  const ICONO_PAGO = { efectivo: ico("cash"), transferencia: ico("bank"), tarjeta: ico("card"), mercadopago: ico("card") };
   const nombrePago = (m) => ({ ...METODOS, tarjeta: "Tarjeta", mercadopago: "Mercado Pago" }[m] || "-"); // tarjeta/MP: solo ventas viejas
   const hora = (f) => new Date(f).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
   const fechaHora = (f) => new Date(f).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -114,8 +116,8 @@
   }
   function mostrarTicket(p, cerrado) {
     estado.ticket = p;
-    $("dlgTicket").innerHTML = `<div class="dlg-cab"><h2>${cerrado ? "✓ Pasó a Ventas" : "Ticket"}</h2><button class="cerrar" data-a="cerrar-ticket" aria-label="Cerrar">✕</button></div>
-      ${ticketHtml(p)}<div class="acciones"><button class="btn btn-principal" data-a="imprimir-ticket" style="flex:1">🖨️ Imprimir ticket</button><button class="btn" data-a="cerrar-ticket">${cerrado ? "Listo" : "Cerrar"}</button></div>`;
+    $("dlgTicket").innerHTML = `<div class="dlg-cab"><h2>${cerrado ? "Pasó a Ventas" : "Ticket"}</h2><button class="cerrar" data-a="cerrar-ticket" aria-label="Cerrar">${ico("x")}</button></div>
+      ${ticketHtml(p)}<div class="acciones"><button class="btn btn-principal" data-a="imprimir-ticket" style="flex:1">${ico("print")} Imprimir ticket</button><button class="btn" data-a="cerrar-ticket">${cerrado ? "Listo" : "Cerrar"}</button></div>`;
     if (!$("dlgTicket").open) $("dlgTicket").showModal();
   }
 
@@ -148,7 +150,7 @@
   // Se cierra solo con la X.
   function abrirDialogCaja(despues) {
     $("dlgCaja").innerHTML = `<form id="formCajaObl">
-      <div class="dlg-cab"><h2>Abrir la caja</h2><button type="button" class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>
+      <div class="dlg-cab"><h2>Abrir la caja</h2><button type="button" class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">${ico("x")}</button></div>
       <p class="suave" style="margin-bottom:14px;font-size:1rem">Para cobrar o despachar pedidos hay que tener la caja abierta. Poné con cuánto efectivo empezás (el cambio).</p>
       <label class="campo"><span>Efectivo inicial ($)</span><input id="cajaMonto" name="monto" type="number" inputmode="decimal" min="0" step="any" required value="0"></label>
       <p class="error" id="cajaError" hidden></p>
@@ -177,7 +179,7 @@
     }
     return `<ul class="items">${[...g.values()].map((i) => `<li class="${i.nuevo ? "nuevo-it" : ""}"><b>${i.cantidad}×</b> ${esc(i.nombre)}${i.nota ? `<em>» ${esc(i.nota)}</em>` : ""}</li>`).join("")}</ul>`;
   }
-  const avisoTag = (p) => (p.aviso === "cuenta" ? '<span class="tag aviso">🧾 Pide la cuenta</span>' : p.aviso === "mozo" ? '<span class="tag aviso">🙋 Llama al mozo</span>' : "");
+  const avisoTag = (p) => (p.aviso === "cuenta" ? `<span class="tag aviso">${ico("receipt")} Pide la cuenta</span>` : p.aviso === "mozo" ? `<span class="tag aviso">${ico("bell")} Llama al mozo</span>` : "");
 
   function tarjetaMesa(p) {
     return `<article class="ped ${p.sinVer || p.aviso ? "nuevo" : ""}">
@@ -186,8 +188,8 @@
         <div class="ped-cab">${p.sinVer ? '<span class="tag alerta">Nuevo</span>' : ""}${avisoTag(p)}<span>${hace(p.creado_en)}</span></div>
         ${listaItems(p)}
         <div class="ped-pie"><div class="total">${pesos(p.total)}</div>
-          <div class="acciones">${p.sinVer || p.aviso ? `<button class="btn btn-chico" data-a="visto" data-id="${p.id}">✓ Visto</button>` : ""}
-            <button class="btn btn-chico" data-a="imprimir-pedido" data-id="${p.id}">🖨️ Imprimir</button>
+          <div class="acciones">${p.sinVer || p.aviso ? `<button class="btn btn-chico" data-a="visto" data-id="${p.id}">${ico("check")} Visto</button>` : ""}
+            <button class="btn btn-chico" data-a="imprimir-pedido" data-id="${p.id}">${ico("print")} Imprimir</button>
             <button class="btn btn-chico" data-a="editar" data-id="${p.id}">Editar</button>
             <button class="btn btn-principal btn-chico" data-a="cobrar" data-id="${p.id}">Cobrar y cerrar</button>
             <button class="btn btn-peligro btn-chico" data-a="cancelar" data-id="${p.id}">Cancelar pedido</button></div></div>
@@ -200,15 +202,15 @@
       <div class="ped-cuerpo">
         <div class="ped-cab">${p.sinVer ? '<span class="tag alerta">Nuevo</span>' : ""}<span class="tag pago">${ICONO_PAGO[p.pago_preferido] || ""} ${nombrePago(p.pago_preferido)}</span><span>${hace(p.creado_en)}</span></div>
         <div class="datos-cli"><strong>${esc(p.cliente_nombre)}</strong>
-          <span>📱 <a href="https://wa.me/${waNumero(p.cliente_telefono)}" target="_blank" rel="noopener">${esc(p.cliente_telefono)}</a></span>
-          <span>📍 <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}" target="_blank" rel="noopener">${esc(p.direccion)}</a></span>
-          ${p.referencia ? `<span>🏠 ${esc(p.referencia)}</span>` : ""}</div>
+          <span>${ico("phone")} <a href="https://wa.me/${waNumero(p.cliente_telefono)}" target="_blank" rel="noopener">${esc(p.cliente_telefono)}</a></span>
+          <span>${ico("pin")} <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.direccion)}" target="_blank" rel="noopener">${esc(p.direccion)}</a></span>
+          ${p.referencia ? `<span>${ico("home")} ${esc(p.referencia)}</span>` : ""}</div>
         ${listaItems(p)}
-        ${vuelto !== null || p.envio > 0 ? `<div class="pago-info">${p.envio > 0 ? `<div>🛵 Incluye envío: <b>${pesos(p.envio)}</b></div>` : ""}${vuelto !== null ? `<div>💵 Abona con: <b>${pesos(p.pago_con)}</b></div><div class="vuelto-grande">Vuelto a llevar: <b>${pesos(vuelto)}</b></div>` : ""}</div>` : ""}
+        ${vuelto !== null || p.envio > 0 ? `<div class="pago-info">${p.envio > 0 ? `<div>${ico("bag")} Incluye envío: <b>${pesos(p.envio)}</b></div>` : ""}${vuelto !== null ? `<div>${ico("cash")} Abona con: <b>${pesos(p.pago_con)}</b></div><div class="vuelto-grande">Vuelto a llevar: <b>${pesos(vuelto)}</b></div>` : ""}</div>` : ""}
         <div class="ped-pie"><div class="total">${pesos(p.total)}</div>
-          <div class="acciones">${p.sinVer ? `<button class="btn btn-chico" data-a="visto" data-id="${p.id}">✓ Visto</button>` : ""}
-            <button class="btn btn-chico" data-a="imprimir-pedido" data-id="${p.id}">🖨️ Imprimir</button>
-            <a class="btn btn-chico" href="https://wa.me/${waNumero(p.cliente_telefono)}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a>
+          <div class="acciones">${p.sinVer ? `<button class="btn btn-chico" data-a="visto" data-id="${p.id}">${ico("check")} Visto</button>` : ""}
+            <button class="btn btn-chico" data-a="imprimir-pedido" data-id="${p.id}">${ico("print")} Imprimir</button>
+            <a class="btn btn-chico" href="https://wa.me/${waNumero(p.cliente_telefono)}" target="_blank" rel="noopener" style="text-decoration:none">${ico("chat")} WhatsApp</a>
             <button class="btn btn-chico" data-a="editar" data-id="${p.id}">Editar</button>
             <button class="btn btn-principal btn-chico" data-a="cobrar" data-id="${p.id}">Despachar</button>
             <button class="btn btn-peligro btn-chico" data-a="cancelar" data-id="${p.id}">Cancelar pedido</button></div></div>
@@ -228,7 +230,7 @@
           <button class="interruptor ${estado.sonido ? "on" : ""}" data-a="sonido"><i></i>Sonido</button>
           <button class="interruptor ${estado.autoImprimir ? "on" : ""}" data-a="auto-imprimir" title="Imprime la comanda sola cuando llega un pedido"><i></i>Imprimir automático</button>
           <button class="btn btn-principal" data-a="nueva-mesa">＋ Nueva mesa</button></div></div>
-      ${estado.caja === false ? `<div class="banner-caja"><div><b>💵 La caja está cerrada.</b> Podés recibir pedidos, pero para cobrar o despachar ${ES_ADMIN ? "hay que abrirla." : "el administrador tiene que abrirla."}</div>${ES_ADMIN ? '<button class="btn btn-principal" data-a="abrir-caja">Abrir caja</button>' : ""}</div>` : ""}
+      ${estado.caja === false ? `<div class="banner-caja"><div><b>La caja está cerrada.</b> Podés recibir pedidos, pero para cobrar o despachar ${ES_ADMIN ? "hay que abrirla." : "el administrador tiene que abrirla."}</div>${ES_ADMIN ? '<button class="btn btn-principal" data-a="abrir-caja">Abrir caja</button>' : ""}</div>` : ""}
       <div class="titulo-vista" style="margin-bottom:16px"><div class="seg">${[["todos", "Todos"], ["mesa", `Mesas (${mesas.length})`], ["delivery", `Delivery (${deliverys.length})`]].map(([k, t]) => `<button data-a="filtro" data-f="${k}" class="${f === k ? "sel" : ""}">${t}</button>`).join("")}</div></div>
       <div class="cols ${f === "todos" ? "" : "una"}">${f !== "delivery" ? colMesas : ""}${f !== "mesa" ? colDel : ""}</div>`;
   }
@@ -238,7 +240,7 @@
     const quien = p.tipo === "delivery" ? `el delivery #${p.id} de ${esc(p.cliente_nombre)}` : `el pedido de la Mesa ${p.mesa}`;
     const productos = (p.items || []).reduce((n, i) => n + i.cantidad, 0);
     $("dlgConfirmar").innerHTML = `
-      <div class="dlg-cab"><h2>¿Cancelar el pedido?</h2><button class="cerrar" data-a="no-cancelar" aria-label="Cerrar">✕</button></div>
+      <div class="dlg-cab"><h2>¿Cancelar el pedido?</h2><button class="cerrar" data-a="no-cancelar" aria-label="Cerrar">${ico("x")}</button></div>
       <p class="confirmar-txt">Vas a cancelar <b>${quien}</b> (${productos} producto${productos === 1 ? "" : "s"} · <b>${pesos(p.total)}</b>).</p>
       <p class="suave" style="margin:8px 0 18px">No se cobra y <b>no queda registrado como venta</b>. Esto no se puede deshacer.</p>
       <div class="acciones" style="justify-content:flex-end">
@@ -259,7 +261,7 @@
     if (p.estado !== "abierto") { $("dlgPedido").close(); estado.editandoId = null; return; }
     estado.pedido = p;
     $("dlgPedido").innerHTML = `
-      <div class="dlg-cab"><h2>${p.tipo === "delivery" ? `Delivery #${p.id}` : `Mesa ${p.mesa}`}</h2><button class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>
+      <div class="dlg-cab"><h2>${p.tipo === "delivery" ? `Delivery #${p.id}` : `Mesa ${p.mesa}`}</h2><button class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">${ico("x")}</button></div>
       ${p.tipo === "delivery" ? `<p class="suave" style="margin-bottom:10px">${esc(p.cliente_nombre)} · ${esc(p.cliente_telefono)} · ${esc(p.direccion)}</p>` : ""}
       <div class="lineas">${p.items.map((i) => `
         <div class="linea">
@@ -293,7 +295,7 @@
     const buscando = document.activeElement?.id === "bProd";
     const d = estado.destinoAgregar;
     $("dlgAgregar").innerHTML = `
-      <div class="dlg-cab"><h2>Agregar a ${d.mesa ? `Mesa ${d.mesa}` : "la cuenta"}</h2><button class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>
+      <div class="dlg-cab"><h2>Agregar a ${d.mesa ? `Mesa ${d.mesa}` : "la cuenta"}</h2><button class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">${ico("x")}</button></div>
       <div class="buscar"><input id="bProd" type="search" placeholder="Buscar producto…" value="${esc(estado.busqueda || "")}">
         <div class="chips"><button class="chip ${!estado.filtroCat ? "sel" : ""}" data-a="filtro-cat" data-id="">Todos</button>${cats.map((c) => `<button class="chip ${estado.filtroCat === c.id ? "sel" : ""}" data-a="filtro-cat" data-id="${c.id}">${c.icono} ${esc(c.nombre)}</button>`).join("")}</div></div>
       <div class="opciones">${prods.map((p) => `<button class="opcion" data-a="stage" data-id="${p.id}"><b>${esc(p.nombre)}</b><span>${pesos(p.precio)}</span>${estado.stage[p.id] ? `<i class="cuenta">${estado.stage[p.id]}</i>` : ""}</button>`).join("") || '<p class="vacio">Sin resultados</p>'}</div>
@@ -309,7 +311,7 @@
     const dl = p.tipo === "delivery";
     estado.cobro = { id: p.id, p, metodo: p.pago_preferido && METODOS[p.pago_preferido] ? p.pago_preferido : "efectivo", descuento: 0, recibido: "" };
     $("dlgCobro").innerHTML = `
-      <div class="dlg-cab"><h2>${dl ? `Despachar #${p.id}` : `Cobrar · Mesa ${p.mesa}`}</h2><button class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>
+      <div class="dlg-cab"><h2>${dl ? `Despachar #${p.id}` : `Cobrar · Mesa ${p.mesa}`}</h2><button class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">${ico("x")}</button></div>
       ${dl ? `<p class="suave" style="margin-bottom:10px">${esc(p.cliente_nombre)} · ${esc(p.direccion)}</p>` : ""}
       ${!dl ? `<div class="totales"><div class="t"><span>Subtotal</span><b>${pesos(p.subtotal)}</b></div></div>
       <label class="campo"><span>Descuento ($)</span><input id="cDesc" type="number" inputmode="decimal" min="0" step="any" placeholder="0">
@@ -348,7 +350,7 @@
         <div class="kpi"><small>Este mes</small><strong>${pesos(r.mes.ventas)}</strong><em>${r.mes.pedidos} venta(s)</em></div></div>
       <div class="tarjeta"><div class="titulo-vista" style="margin-bottom:12px"><h3 style="margin:0">Detalle del día</h3><input id="diaV" type="date" value="${j.dia}" style="width:auto"></div>
         <div class="acciones" style="margin-bottom:12px"><span class="tag pago">Total ${pesos(j.total)}</span>${Object.entries(j.porMetodo).map(([m, v]) => `<span class="tag">${ICONO_PAGO[m] || ""} ${nombrePago(m)} ${pesos(v)}</span>`).join("")}</div>
-        ${j.pedidos.length ? `<table class="tabla"><thead><tr><th>Hora</th><th>Pedido</th><th>Pago</th><th class="der">Total</th></tr></thead><tbody>${j.pedidos.map((p) => `<tr class="click" data-a="ver-ticket" data-id="${p.id}"><td>${hora(p.cerrado_en)}</td><td>${p.tipo === "delivery" ? `🛵 #${p.id} · ${esc(p.cliente_nombre)}` : `🍽️ Mesa ${p.mesa}`}</td><td>${nombrePago(p.metodo_pago)}</td><td class="der"><b>${pesos(p.total)}</b></td></tr>`).join("")}</tbody></table><p class="suave" style="margin-top:10px">Tocá una venta para ver o reimprimir el ticket. (El día de negocio va de 5:00 a 5:00.)</p>` : '<p class="vacio">No hay ventas en este día.</p>'}</div>`;
+        ${j.pedidos.length ? `<table class="tabla"><thead><tr><th>Hora</th><th>Pedido</th><th>Pago</th><th class="der">Total</th></tr></thead><tbody>${j.pedidos.map((p) => `<tr class="click" data-a="ver-ticket" data-id="${p.id}"><td>${hora(p.cerrado_en)}</td><td>${p.tipo === "delivery" ? `${ico("bag")} Delivery #${p.id} · ${esc(p.cliente_nombre)}` : `${ico("mesa")} Mesa ${p.mesa}`}</td><td>${nombrePago(p.metodo_pago)}</td><td class="der"><b>${pesos(p.total)}</b></td></tr>`).join("")}</tbody></table><p class="suave" style="margin-top:10px">Tocá una venta para ver o reimprimir el ticket. (El día de negocio va de 5:00 a 5:00.)</p>` : '<p class="vacio">No hay ventas en este día.</p>'}</div>`;
     $("diaV").onchange = (e) => e.target.value && seguro(vistaVentas)(e.target.value);
   }
 
@@ -358,7 +360,7 @@
     estado.menu = (await api("GET", BASE + "/api/menu")).categorias;
     estado.bMenu = ""; estado.catMenu = null;
     $("vista-menu").innerHTML = `<div class="titulo-vista"><div><p class="eyebrow">Panel de administración</p><h2>Menú</h2><p>Lo que ven tus clientes. Pausá un producto si se acabó.</p></div><button class="btn btn-principal" data-a="nueva-cat">＋ Categoría</button></div>
-      <div class="buscador-menu"><input id="bMenu" type="search" placeholder="🔍 Buscar categoría o producto…" autocomplete="off" aria-label="Buscar en el menú">
+      <div class="buscador-menu"><input id="bMenu" type="search" placeholder="Buscar categoría o producto…" autocomplete="off" aria-label="Buscar en el menú">
         <div class="chips-menu" id="chipsMenu"></div></div>
       <div id="listaMenu"></div>`;
     pintarListaMenu();
@@ -375,17 +377,17 @@
       return prods.length ? { ...c, productos: prods } : null;
     }).filter(Boolean);
     $("listaMenu").innerHTML = visibles.map((c) => `<div class="tarjeta cat-admin">
-        <div class="cat-cab"><h3>${c.imagen ? `<img src="${esc(c.imagen)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px">` : c.icono + " "}${esc(c.nombre)} ${c.activo ? "" : '<span class="etq">OCULTA</span>'}</h3>
+        <div class="cat-cab"><h3>${c.imagen ? `<img src="${esc(c.imagen)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px">` : ""}${esc(c.nombre)} ${c.activo ? "" : '<span class="etq">OCULTA</span>'}</h3>
           <button class="btn btn-chico" data-a="nuevo-prod" data-id="${c.id}">＋ Producto</button><button class="btn btn-chico" data-a="editar-cat" data-id="${c.id}">Editar</button></div>
         ${c.productos.map((p) => `<div class="prod-fila ${p.activo ? "" : "inactivo"}">
-          <div class="mini">${p.imagen || c.imagen ? `<img src="${esc(p.imagen || c.imagen)}" alt="">` : c.icono}</div>
+          <div class="mini">${p.imagen || c.imagen ? `<img src="${esc(p.imagen || c.imagen)}" alt="">` : ""}</div>
           <div><b>${esc(p.nombre)} ${p.activo ? "" : '<span class="etq">PAUSADO</span>'}</b><p class="suave">${esc(p.descripcion)}</p></div>
           <div class="importe">${pesos(p.precio)}</div>
           <div class="acciones"><button class="btn btn-chico" data-a="editar-prod" data-id="${p.id}">Editar</button></div></div>`).join("") || '<p class="suave">Sin productos todavía.</p>'}
       </div>`).join("") || (estado.menu.length ? '<p class="vacio">No encontré nada con esa búsqueda.</p>' : '<p class="vacio">Todavía no cargaste categorías. Empezá creando una (ej: Hamburguesas).</p>');
   }
   function abrirForm(tit, cuerpo, alEnviar) {
-    $("dlgForm").innerHTML = `<form id="formDlg"><div class="dlg-cab"><h2>${tit}</h2><button type="button" class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">✕</button></div>${cuerpo}</form>`;
+    $("dlgForm").innerHTML = `<form id="formDlg"><div class="dlg-cab"><h2>${tit}</h2><button type="button" class="cerrar" data-a="cerrar-dlg" aria-label="Cerrar">${ico("x")}</button></div>${cuerpo}</form>`;
     $("formDlg").onsubmit = seguro(async (e) => { e.preventDefault(); await alEnviar(new FormData(e.target)); });
     if (!$("dlgForm").open) $("dlgForm").showModal();
   }
@@ -406,13 +408,13 @@
   function formCategoria(c) {
     abrirForm(c ? "Editar categoría" : "Nueva categoría", `
       <label class="campo"><span>Nombre</span><input name="nombre" required maxlength="80" value="${esc(c?.nombre)}"></label>
-      <div class="fila-campos"><label class="campo"><span>Ícono (emoji)</span><input name="icono" maxlength="8" value="${esc(c?.icono || "🍽️")}"></label>
+      <div class="fila-campos"><label class="campo"></label>
       <label class="campo"><span>Orden</span><input name="orden" type="number" value="${c?.orden ?? estado.menu.length}"></label></div>
       ${htmlFoto(c?.imagen, "(la usan los productos que no tienen foto propia)")}
       <label class="campo"><input type="checkbox" name="activo" ${c?.activo !== false ? "checked" : ""}> Visible en el menú</label>
       <div class="acciones"><button class="btn btn-principal" style="flex:1">Guardar</button>${c ? `<button type="button" class="btn btn-peligro" data-a="borrar-cat" data-id="${c.id}">Eliminar</button>` : ""}</div>`,
       async (fd) => {
-        await api(c ? "PUT" : "POST", c ? `${BASE}/api/categorias/${c.id}` : BASE + "/api/categorias", { nombre: fd.get("nombre"), icono: fd.get("icono"), orden: fd.get("orden"), imagen: fd.get("imagen"), activo: fd.has("activo") });
+        await api(c ? "PUT" : "POST", c ? `${BASE}/api/categorias/${c.id}` : BASE + "/api/categorias", { nombre: fd.get("nombre"), orden: fd.get("orden"), imagen: fd.get("imagen"), activo: fd.has("activo") });
         $("dlgForm").close(); toast("Categoría guardada"); vistaMenu();
       });
     enlazarFoto();
@@ -422,7 +424,7 @@
       <label class="campo"><span>Nombre</span><input name="nombre" required maxlength="120" value="${esc(p?.nombre)}"></label>
       <label class="campo"><span>Descripción <small>(opcional)</small></span><textarea name="descripcion" rows="2" maxlength="300">${esc(p?.descripcion)}</textarea></label>
       <div class="fila-campos"><label class="campo"><span>Precio ($)</span><input name="precio" type="number" inputmode="decimal" min="0" step="any" required value="${p?.precio ?? ""}"></label>
-      <label class="campo"><span>Categoría</span><select name="categoria_id">${estado.menu.map((c) => `<option value="${c.id}" ${(p?.categoria_id ?? categoriaId) == c.id ? "selected" : ""}>${c.icono} ${esc(c.nombre)}</option>`).join("")}</select></label></div>
+      <label class="campo"><span>Categoría</span><select name="categoria_id">${estado.menu.map((c) => `<option value="${c.id}" ${(p?.categoria_id ?? categoriaId) == c.id ? "selected" : ""}>${esc(c.nombre)}</option>`).join("")}</select></label></div>
       ${htmlFoto(p?.imagen, "(si no subís una, usa la de la categoría)")}
       <label class="campo"><input type="checkbox" name="activo" ${p?.activo !== false ? "checked" : ""}> Disponible (destildalo si se acabó)</label>
       <div class="acciones"><button class="btn btn-principal" style="flex:1">Guardar</button>${p ? `<button type="button" class="btn btn-peligro" data-a="borrar-prod" data-id="${p.id}">Eliminar</button>` : ""}</div>`,
@@ -474,7 +476,7 @@
           <form id="formCerrar"><div class="fila-campos"><label class="campo"><span>Efectivo contado ($)</span><input name="contado" type="number" inputmode="decimal" min="0" step="any" required></label>
           <label class="campo"><span>Nota <small>(opcional)</small></span><input name="nota" maxlength="250"></label></div><button class="btn btn-peligro">Cerrar caja del día</button></form></div>`;
     }
-    html += `<div class="tarjeta"><h3>Cierres anteriores</h3>${historial.length ? `<table class="tabla"><thead><tr><th>Cierre</th><th class="der">Ventas</th><th class="der">Esperado</th><th class="der">Contado</th><th class="der">Diferencia</th><th></th></tr></thead><tbody>${historial.map((h) => `<tr><td>${fechaHora(h.cerrado_en)}</td><td class="der">${pesos(h.totalVentas)}</td><td class="der">${pesos(h.monto_esperado)}</td><td class="der">${pesos(h.monto_contado)}</td><td class="der ${h.diferencia === 0 ? "" : h.diferencia > 0 ? "pos" : "neg"}">${h.diferencia > 0 ? "+" : ""}${pesos(h.diferencia)}</td><td class="der"><button class="btn btn-chico btn-borrar" data-a="borrar-cierre" data-id="${h.id}" title="Borrar este cierre" aria-label="Borrar este cierre">🗑</button></td></tr>`).join("")}</tbody></table>` : '<p class="suave">Todavía no cerraste ninguna caja.</p>'}</div>`;
+    html += `<div class="tarjeta"><h3>Cierres anteriores</h3>${historial.length ? `<table class="tabla"><thead><tr><th>Cierre</th><th class="der">Ventas</th><th class="der">Esperado</th><th class="der">Contado</th><th class="der">Diferencia</th><th></th></tr></thead><tbody>${historial.map((h) => `<tr><td>${fechaHora(h.cerrado_en)}</td><td class="der">${pesos(h.totalVentas)}</td><td class="der">${pesos(h.monto_esperado)}</td><td class="der">${pesos(h.monto_contado)}</td><td class="der ${h.diferencia === 0 ? "" : h.diferencia > 0 ? "pos" : "neg"}">${h.diferencia > 0 ? "+" : ""}${pesos(h.diferencia)}</td><td class="der"><button class="btn btn-chico btn-borrar" data-a="borrar-cierre" data-id="${h.id}" title="Borrar este cierre" aria-label="Borrar este cierre">${ico("trash")}</button></td></tr>`).join("")}</tbody></table>` : '<p class="suave">Todavía no cerraste ninguna caja.</p>'}</div>`;
     $("vista-caja").innerHTML = html;
     const f = (id, fn) => $(id) && ($(id).onsubmit = seguro(async (e) => { e.preventDefault(); await fn(Object.fromEntries(new FormData(e.target))); }));
     f("formAbrir", async (b) => { await api("POST", BASE + "/api/caja/abrir", b); toast("Caja abierta"); vistaCaja(); });
@@ -497,7 +499,7 @@
         <div class="fila-campos"><label class="campo"><span>Nombre (sale en los tickets)</span><input name="nombre_local" required maxlength="60" value="${esc(a.nombre_local)}"></label>
         <label class="campo"><span>Cantidad de mesas</span><input name="cantidad_mesas" type="number" min="1" max="100" required value="${a.cantidad_mesas}"></label></div>
         <label class="campo"><input type="checkbox" name="recibir_pedidos" ${a.recibir_pedidos ? "checked" : ""}> Recibir pedidos de mesa desde el celular <small>(destildalo para pausarlos)</small></label>
-        <label class="campo"><input type="checkbox" name="halloween" ${a.halloween ? "checked" : ""}> 🎃 Decoración de Halloween en el menú <small>(murciélagos, arañita, telarañas y logo giratorio · destildalo para sacarla)</small></label>
+        <label class="campo"><input type="checkbox" name="halloween" ${a.halloween ? "checked" : ""}> Decoración de Halloween en el menú <small>(murciélagos, arañita, telarañas y logo giratorio · destildalo para sacarla)</small></label>
         <label class="campo"><input type="checkbox" name="recibir_delivery" ${a.recibir_delivery ? "checked" : ""}> Recibir pedidos de delivery <small>(destildalo cuando no puedas enviar)</small></label>
         <div class="fila-campos"><label class="campo"><span>Costo de envío ($)</span><input name="costo_envio" type="number" inputmode="decimal" min="0" step="any" value="${a.costo_envio || 0}"></label>
         <label class="campo"><span>Tiempo estimado de entrega</span><input name="tiempo_estimado" maxlength="20" placeholder="30-45 min" value="${esc(a.tiempo_estimado)}"></label></div>
@@ -506,12 +508,12 @@
         <button class="btn btn-principal">Guardar</button></form></div>
       <div class="tarjeta"><h3>Copia de seguridad</h3>
         <p class="suave" style="margin-bottom:12px">Descargá una copia de <b>todos tus datos</b> (productos, pedidos, ventas, cajas y ajustes). Guardala en tu computadora o en la nube. <b>Contiene datos de clientes</b>: no la compartas.</p>
-        <div class="acciones"><a class="btn btn-principal" href="${BASE}/api/backup/base" download>⬇️ Descargar copia de la base de datos</a>
-          <a class="btn" href="${BASE}/api/backup/fotos" download>🖼️ Descargar fotos subidas</a></div>
+        <div class="acciones"><a class="btn btn-principal" href="${BASE}/api/backup/base" download>${ico("download")} Descargar copia de la base de datos</a>
+          <a class="btn" href="${BASE}/api/backup/fotos" download>${ico("image")} Descargar fotos subidas</a></div>
         <p class="suave" style="margin-top:12px;font-size:.9rem">Tip: descargala una vez por semana, o todos los días al cerrar la caja. Para restaurarla hace falta alguien que pueda usar la consola del servidor (la guía <code>DEPLOY.md</code> explica cómo).</p></div>
       <div class="tarjeta"><h3>QR de las mesas</h3>
         <p class="suave" style="margin-bottom:12px">Pegá el QR en cada mesa. <b>La mesa se fija solo escaneando su QR</b> (el cliente no puede elegirla a mano): cada código lleva una clave secreta, así nadie puede pedir en una mesa en la que no está.${/localhost|127\.0\.0\.1/.test(location.hostname) ? ' <b style="color:var(--alerta)">Ahora estás en localhost: cuando publiques el sitio, volvé a esta pantalla desde tu dirección real para generar los QR correctos.</b>' : ""}</p>
-        <div class="acciones" style="margin-bottom:12px"><button class="btn" data-a="imprimir-qr">🖨️ Imprimir QR de todas las mesas</button></div>
+        <div class="acciones" style="margin-bottom:12px"><button class="btn" data-a="imprimir-qr">${ico("print")} Imprimir QR de todas las mesas</button></div>
         <div class="qr-grid" id="qrGrid"></div></div>`;
     $("formAj").onsubmit = seguro(async (e) => {
       e.preventDefault(); const fd = new FormData(e.target);
@@ -600,7 +602,7 @@
     "cat-menu": (d) => { estado.catMenu = d.id ? Number(d.id) : null; pintarListaMenu(); },
     "borrar-cierre": (d) => {
       const h = estado.historialCaja.find((x) => x.id === Number(d.id)); if (!h) return;
-      $("dlgConfirmar").innerHTML = `<div class="dlg-cab"><h2>¿Borrar este cierre?</h2><button class="cerrar" data-a="no-cancelar" aria-label="Cerrar">✕</button></div>
+      $("dlgConfirmar").innerHTML = `<div class="dlg-cab"><h2>¿Borrar este cierre?</h2><button class="cerrar" data-a="no-cancelar" aria-label="Cerrar">${ico("x")}</button></div>
         <p class="confirmar-txt">Cierre del <b>${fechaHora(h.cerrado_en)}</b> · ventas <b>${pesos(h.totalVentas)}</b>.</p>
         <p class="suave" style="margin:8px 0 18px">Se borra de la lista y <b>no se puede deshacer</b>. Las ventas siguen apareciendo en Ventas.</p>
         <div class="acciones" style="justify-content:flex-end"><button class="btn" data-a="no-cancelar">No, volver</button><button class="btn btn-peligro lleno" data-a="si-borrar-cierre" data-id="${h.id}">Sí, borrar cierre</button></div>`;
@@ -645,7 +647,7 @@
   // ---------- Tiempo real ----------
   async function alegarPedidoNuevo(ev) {
     beep();
-    toast(ev.delivery ? "🛵 Nuevo pedido de DELIVERY" : `🍽️ Nuevo pedido en la Mesa ${ev.mesa}`);
+    toast(ev.delivery ? "Nuevo pedido de DELIVERY" : `Nuevo pedido en la Mesa ${ev.mesa}`);
     if (estado.autoImprimir && ev.pedidoId) {
       const { pedido } = await api("GET", `${BASE}/api/pedidos/${ev.pedidoId}`);
       const nuevos = pedido.items.filter((i) => (ev.itemIds || []).includes(i.id));
@@ -657,7 +659,7 @@
     es.onmessage = seguro(async (e) => {
       const ev = JSON.parse(e.data);
       if (ev.tipo === "pedido") await alegarPedidoNuevo(ev);
-      else if (ev.tipo === "aviso") { beep(); toast(`🔔 La Mesa ${ev.mesa} te llama`); }
+      else if (ev.tipo === "aviso") { beep(); toast(`La Mesa ${ev.mesa} te llama`); }
       await cargarActivos();
     });
   }

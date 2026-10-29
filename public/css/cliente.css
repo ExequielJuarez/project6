@@ -69,7 +69,8 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 .cats { display: flex; gap: 6px; overflow-x: auto; padding: 22px var(--gut) 8px; margin: 0 calc(-1 * var(--gut)); scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .cats::-webkit-scrollbar { display: none; }
 .cat { flex: none; width: 84px; display: flex; flex-direction: column; align-items: center; gap: 8px; background: transparent; border: 0; padding: 0 0 8px; position: relative; }
-.cat-icono { width: 62px; height: 62px; display: grid; place-items: center; font-size: 1.8rem; border-radius: 50%; background: var(--crema); border: 3px solid transparent; transition: border-color .15s, background .15s; }
+.cat-icono { width: 62px; height: 62px; display: block; overflow: hidden; border-radius: 50%; background: var(--crema); border: 3px solid transparent; box-sizing: border-box; transition: border-color .15s; }
+.cat-icono img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cat-nombre { font-size: .86rem; font-weight: 500; text-align: center; line-height: 1.15; }
 .cat.activa .cat-icono { border-color: var(--amarillo); background: var(--card); }
 .cat.activa .cat-nombre { font-weight: 800; }
@@ -199,3 +200,10 @@ dialog.ancha { width: min(94vw, 560px); }
 }
 @media (min-width: 1100px) { .grilla { grid-template-columns: repeat(3, 1fr); } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* Íconos dibujados (reemplazan a los emojis) */
+.i { width: 1.15em; height: 1.15em; vertical-align: -.2em; flex: none; }
+.ver-todas .i { width: 1em; height: 1em; }
+.cerrar .i { width: 18px; height: 18px; vertical-align: middle; }
+.listo-ok .i { width: 38px; height: 38px; stroke-width: 2.6; }
+.foto-vacia { width: 100%; height: 100%; object-fit: contain; padding: 18%; opacity: .55; display: block; }

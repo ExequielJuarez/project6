@@ -14,7 +14,7 @@ const carta = require("./menu-real");
   const limpiarPedidos = args.includes("--limpiar-pedidos");
   try {
     if (process.env.NODE_ENV === "production" && !args.includes("--si-estoy-seguro")) {
-      console.error("⛔ Esto BORRA el menú actual" + (limpiarPedidos ? " y TODOS los pedidos y ventas" : "") + ". En producción agregá --si-estoy-seguro.");
+      console.error("Esto BORRA el menú actual" + (limpiarPedidos ? " y TODOS los pedidos y ventas" : "") + ". En producción agregá --si-estoy-seguro.");
       process.exit(1);
     }
     await db.sequelize.authenticate();
@@ -27,7 +27,7 @@ const carta = require("./menu-real");
       await db.Producto.destroy({ where: {}, transaction: t });
       await db.Categoria.destroy({ where: {}, transaction: t });
       for (const [i, c] of carta.entries()) {
-        const cat = await db.Categoria.create({ nombre: c.nombre, icono: c.icono, imagen: c.imagen || "", orden: i }, { transaction: t });
+        const cat = await db.Categoria.create({ nombre: c.nombre, imagen: c.imagen || "", orden: i }, { transaction: t });
         await db.Producto.bulkCreate(
           c.productos.map((p, j) => ({ categoria_id: cat.id, nombre: p.nombre, descripcion: p.descripcion || "", precio: p.precio, costo: 0, imagen: p.imagen || "", activo: p.activo !== false, orden: j })),
           { transaction: t }
@@ -42,15 +42,15 @@ const carta = require("./menu-real");
         for (const tabla of ["pedido_items", "pedidos", "caja_movimientos", "caja_turnos"]) await db.sequelize.query(`TRUNCATE TABLE ${tabla}`, { transaction: t });
         await db.sequelize.query("SET FOREIGN_KEY_CHECKS = 1", { transaction: t });
       });
-      console.log("🧹 Pedidos, ventas y cajas de prueba borrados.");
+      console.log("Pedidos, ventas y cajas de prueba borrados.");
     }
 
     const pausados = await db.Producto.count({ where: { activo: false } });
-    console.log(`✅ Carta cargada: ${await db.Categoria.count()} categorías y ${await db.Producto.count()} productos.`);
-    if (pausados) console.log(`ℹ️  ${pausados} productos quedaron PAUSADOS porque la carta no tiene su precio (tortas del día): ponéles precio en el panel → Menú y tildá "Disponible".`);
+    console.log(`Carta cargada: ${await db.Categoria.count()} categorías y ${await db.Producto.count()} productos.`);
+    if (pausados) console.log(`${pausados} productos quedaron PAUSADOS porque la carta no tiene su precio (tortas del día): ponéles precio en el panel → Menú y tildá "Disponible".`);
     await db.sequelize.close();
   } catch (e) {
-    console.error("❌", e.message);
+    console.error("", e.message);
     process.exit(1);
   }
 })();

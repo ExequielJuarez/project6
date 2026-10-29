@@ -33,7 +33,7 @@
   function setMesa(n, t) { mesa = n; tokenMesa = t; guardar("sb_mesa", { n, t, ts: Date.now() }); }
   function olvidarMesa() { mesa = null; tokenMesa = ""; guardar("sb_mesa", null); }
   const puedePedir = () => modo === "delivery" || (datos.recibir && Boolean(mesa));
-  const motivoBloqueo = () => (!datos.recibir && modo === "mesa" ? "Por ahora no tomamos pedidos desde el celular. Pedile al mozo 🙂" : "Escaneá el QR de tu mesa para pedir (o elegí Delivery).");
+  const motivoBloqueo = () => (!datos.recibir && modo === "mesa" ? "Por ahora no tomamos pedidos desde el celular. Pedile al mozo." : "Escaneá el QR de tu mesa para pedir (o elegí Delivery).");
 
   function pintarMesa() {
     const delivery = modo === "delivery";
@@ -43,7 +43,7 @@
     $("ubicDerTxt").textContent = datos.tiempo || "";
     const av = $("avisoQr");
     av.hidden = delivery || Boolean(mesa);
-    av.textContent = qrViejo ? "Ese código QR ya no sirve. Pedile al mozo que te indique el QR actual de tu mesa 🙂" : "Para pedir en tu mesa, escaneá el código QR que está en ella. También podés pedir por Delivery.";
+    av.textContent = qrViejo ? "Ese código QR ya no sirve. Pedile al mozo que te indique el QR actual de tu mesa." : "Para pedir en tu mesa, escaneá el código QR que está en ella. También podés pedir por Delivery.";
   }
 
   function toast(txt) {
@@ -219,7 +219,7 @@
         pr.hidden = !ok; if (ok) hay++;
       });
       sec.hidden = hay === 0; visibles += hay;
-      sec.querySelector(".ver-todas").hidden = catSel !== "todas" || !!busqueda; // "Ver todas →" solo en la vista general
+      sec.querySelector(".ver-todas").hidden = catSel !== "todas" || !!busqueda; // "Ver todas" solo en la vista general
     });
     $("sinResultados").hidden = visibles > 0 || !secciones.length;
   }
